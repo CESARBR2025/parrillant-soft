@@ -31,7 +31,7 @@ CREATE POLICY "mesas_update_mesero_admin_caja"
   TO authenticated
   USING (public.get_my_rol() IN ('super_admin', 'admin', 'caja', 'mesero'));
 
--- 4. detalles_insert_mesero: aceptar también 'en_preparacion'
+-- 4. detalles_insert_mesero: aceptar también 'en_preparacion' y 'listo'
 DROP POLICY IF EXISTS "detalles_insert_mesero" ON public.detalles_orden;
 
 CREATE POLICY "detalles_insert_mesero"
@@ -42,13 +42,12 @@ CREATE POLICY "detalles_insert_mesero"
     AND EXISTS (
       SELECT 1 FROM public.ordenes o
       WHERE o.id = detalles_orden.orden_id
-        AND o.mesero_id = auth.uid()
-        AND o.estado IN ('pendiente', 'en_preparacion')
+        AND o.estado IN ('pendiente', 'en_preparacion', 'listo')
     )
   );
 
--- 5. ordenes_update_mesero: permitir actualizar también en 'en_preparacion'
---    (por si el mesero necesita agregar ítems)
+-- 5. ordenes_update_mesero: permitir actualizar también en 'en_preparacion' y 'listo'
+--    (para que el mesero pueda agregar ítems a órdenes listas y reactivarlas)
 DROP POLICY IF EXISTS "ordenes_update_mesero" ON public.ordenes;
 
 CREATE POLICY "ordenes_update_mesero"
@@ -56,8 +55,7 @@ CREATE POLICY "ordenes_update_mesero"
   TO authenticated
   USING (
     public.get_my_rol() = 'mesero'
-    AND mesero_id = auth.uid()
-    AND estado IN ('pendiente', 'en_preparacion')
+    AND estado IN ('pendiente', 'en_preparacion', 'listo')
   );
 
 -- 6. ordenes_update_cocina/barra: asegurar que no tengan conflicto

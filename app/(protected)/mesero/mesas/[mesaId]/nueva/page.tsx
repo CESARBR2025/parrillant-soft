@@ -41,7 +41,7 @@ export default async function NuevaOrdenPage({
         .from('ordenes')
         .select('id, estado')
         .eq('id', Number(ordenId))
-        .in('estado', ['pendiente', 'en_preparacion'])
+        .in('estado', ['pendiente', 'en_preparacion', 'listo'])
         .single()
         .then(r => r.data)
     : null;

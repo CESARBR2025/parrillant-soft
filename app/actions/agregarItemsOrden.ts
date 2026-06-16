@@ -37,11 +37,16 @@ export async function agregarItemsOrden(
     return { error: 'Orden no encontrada' };
   }
 
-  if (orden.mesero_id !== user.id) {
-    return { error: 'No autorizado para modificar esta orden' };
-  }
+  if (orden.estado === 'listo') {
+    const { error: updateError } = await supabase
+      .from('ordenes')
+      .update({ estado: 'en_preparacion', updated_at: new Date().toISOString() })
+      .eq('id', orden_id);
 
-  if (orden.estado !== 'pendiente' && orden.estado !== 'en_preparacion') {
+    if (updateError) {
+      return { error: 'No se pudo reactivar la orden. Intenta de nuevo.' };
+    }
+  } else if (orden.estado !== 'pendiente' && orden.estado !== 'en_preparacion') {
     return { error: 'Solo puedes agregar ítems a órdenes pendientes o en preparación' };
   }
 
