@@ -36,7 +36,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const { estado } = await request.json();
+    const { estado, metodo_pago, pagado_con } = await request.json();
     const supabase = await createServerSupabaseClient();
 
     // Verificar autenticación
@@ -72,6 +72,8 @@ export async function PATCH(
       );
     }
 
+    updateData.estado = estado;
+
     // Si se cierra, calcular total y registrar quién cerró
     if (estado === "cerrado") {
       const { data: detalles } = await supabase
@@ -87,6 +89,8 @@ export async function PATCH(
 
       updateData.total = total;
       updateData.cerrado_por_id = user.id;
+      if (metodo_pago) updateData.metodo_pago = metodo_pago;
+      if (pagado_con != null) updateData.pagado_con = pagado_con;
     }
 
     const { data: ordenActualizada, error } = await supabase
