@@ -89,6 +89,20 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Usuario autenticado en la raíz → redirigir a su dashboard según rol
+  if (pathname === "/") {
+    const { data: perfil } = await supabase
+      .from("perfiles")
+      .select("rol")
+      .eq("id", user.id)
+      .single();
+
+    if (perfil) {
+      const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol];
+      return NextResponse.redirect(new URL(rutaInicio, request.url));
+    }
+  }
+
   return response;
 }
 
