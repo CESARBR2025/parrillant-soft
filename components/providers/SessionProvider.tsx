@@ -18,7 +18,7 @@ const SessionContext = createContext<SessionContextValue>({
   perfil: null,
   rol: null,
   isLoading: true,
-  refresh: async () => {},
+  refresh: async () => { },
 });
 
 export function useSession() {
