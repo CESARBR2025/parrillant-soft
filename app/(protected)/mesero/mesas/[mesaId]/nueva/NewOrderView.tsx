@@ -108,8 +108,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
         toast.error(result.error);
       } else {
         toast.success('Ítems agregados a la orden');
-        router.push(`/mesero/mesas/${mesa.id}`);
-        router.refresh();
+        router.replace(`/mesero/mesas/${mesa.id}`);
       }
     } else {
       const result = await crearOrden(
@@ -125,8 +124,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
         toast.error(result.error);
       } else {
         toast.success('Orden enviada a cocina/barra');
-        router.push(`/mesero/mesas/${mesa.id}`);
-        router.refresh();
+        router.replace(`/mesero/mesas/${mesa.id}`);
       }
     }
   }, [cart, notaGeneral, mesa.id, ordenExistente, router]);
@@ -329,7 +327,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
               disabled={cart.size === 0}
               onClick={() => setShowConfirm(true)}
             >
-              Enviar a Cocina/Barra
+              {ordenExistente ? 'Agregar a la Orden' : 'Enviar a Cocina/Barra'}
             </Button>
           </div>
         </div>
@@ -401,7 +399,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
                   setShowConfirm(true);
                 }}
               >
-                Enviar a Cocina/Barra
+                {ordenExistente ? 'Agregar a la Orden' : 'Enviar a Cocina/Barra'}
               </Button>
             </div>
           </div>

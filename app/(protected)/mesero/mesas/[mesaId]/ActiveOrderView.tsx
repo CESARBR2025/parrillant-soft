@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/Badge';
 
 interface Detalle {
@@ -42,8 +44,73 @@ const ESTADO_VARIANT: Record<string, 'warning' | 'info' | 'success' | 'purple'> 
   entregado: 'purple',
 };
 
-export function ActiveOrderView({ mesa, orden }: { mesa: Mesa; orden: Orden }) {
+export function ActiveOrderView({ mesa, orden: ordenInicial }: { mesa: Mesa; orden: Orden }) {
   const router = useRouter();
+  const [orden, setOrden] = useState<Orden>(ordenInicial);
+  const pollRef = useRef<() => void>(() => { });
+
+  useEffect(() => {
+    const ordenId = ordenInicial.id;
+    const supabase = createClientSupabaseClient();
+
+    async function poll() {
+      const { data, error } = await supabase
+        .from('ordenes')
+        .select(`
+          id,
+          estado,
+          notas,
+          created_at,
+          detalles_orden (
+            id,
+            cantidad,
+            notas,
+            listo,
+            tipo,
+            producto_id,
+            precio_unitario,
+            productos_menu (nombre, precio)
+          )
+        `)
+        .eq('id', ordenId)
+        .single();
+
+      if (data) {
+        setOrden(data as unknown as Orden);
+      } else if (error) {
+        console.error('[poll] Error fetching orden', error);
+      }
+    }
+
+    console.log(orden)
+
+    pollRef.current = poll;
+
+    poll();
+
+    const channel = supabase
+      .channel(`mesa-orden-${ordenId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'ordenes',
+        filter: `id=eq.${ordenId}`,
+      }, () => poll())
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'detalles_orden',
+        filter: `orden_id=eq.${ordenId}`,
+      }, () => poll())
+      .subscribe();
+
+    const interval = setInterval(poll, 5000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [ordenInicial.id]);
 
   const allItemsReady = orden.detalles_orden.length > 0 && orden.detalles_orden.every(d => d.listo);
 
@@ -79,7 +146,12 @@ export function ActiveOrderView({ mesa, orden }: { mesa: Mesa; orden: Orden }) {
 
       <div className="bg-card rounded-2xl border border-border/60 overflow-hidden">
         <div className="px-5 py-3 border-b border-border/40">
-          <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">Ítems</h2>
+          <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">
+            Ítems
+            <span className="ml-2 font-normal normal-case text-xs">
+              ({orden.detalles_orden.length})
+            </span>
+          </h2>
         </div>
         <ul className="divide-y divide-border/40">
           {orden.detalles_orden.map(detalle => (
@@ -118,7 +190,7 @@ export function ActiveOrderView({ mesa, orden }: { mesa: Mesa; orden: Orden }) {
                 body: JSON.stringify({ estado: 'entregado' }),
               });
               if (res.ok) {
-                router.refresh();
+                pollRef.current();
               }
             }}
             className="w-full rounded-xl bg-purple-600 px-4 py-3 text-sm font-medium text-white hover:bg-purple-700 transition-colors"
