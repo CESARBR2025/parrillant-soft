@@ -98,6 +98,6 @@ export const config = {
      * Excluir archivos estáticos y rutas de Next.js internos
      * Solo ejecutar en rutas de página
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?|css|js)$|api/).*)",
   ],
 };
