@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createMiddlewareSupabaseClient } from "@/lib/supabase/middleware";
 import type { Rol } from "./types/roles";
-import { RUTA_INICIO_POR_ROL, RUTAS_POR_ROL } from "./types/roles";
+import { RUTA_INICIO_POR_ROL } from "./types/roles";
 
 // Rutas que NO requieren autenticación
 const RUTAS_PUBLICAS = ["/login", "/auth/callback"];
@@ -23,7 +23,6 @@ export async function middleware(request: NextRequest) {
 
   // Crear cliente Supabase para el middleware
   const supabase = createMiddlewareSupabaseClient(request, response);
-  ("");
 
   // CRÍTICO: Siempre llamar getUser() para refrescar el token si es necesario
   const {
