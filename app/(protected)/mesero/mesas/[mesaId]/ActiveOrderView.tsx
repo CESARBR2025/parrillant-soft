@@ -195,7 +195,7 @@ export function ActiveOrderView({ mesa, orden: ordenInicial }: { mesa: Mesa; ord
             }}
             className="w-full rounded-xl bg-purple-600 px-4 py-3 text-sm font-medium text-white hover:bg-purple-700 transition-colors"
           >
-            Marcar como Entregado
+            Finalizar/Solicitar cuenta
           </button>
         )}
 
