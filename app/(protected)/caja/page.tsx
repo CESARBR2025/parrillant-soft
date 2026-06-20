@@ -110,13 +110,13 @@ export default function CajaPage() {
 
         {/* Day summary */}
         <div className="flex gap-3">
-          <div className="bg-card border border-border/60 rounded-xl px-4 py-2.5 text-center min-w-[100px]">
+          <div className="bg-card border-2 border-border/60 rounded-xl px-4 py-2.5 text-center min-w-[100px]">
             <p className="text-xs font-bold text-text-primary">Ventas hoy</p>
             <p className="text-lg font-bold text-accent">
               ${resumen.totalVentas.toFixed(2)}
             </p>
           </div>
-          <div className="bg-card border border-border/60 rounded-xl px-4 py-2.5 text-center min-w-[100px]">
+          <div className="bg-card border-2 border-border/60 rounded-xl px-4 py-2.5 text-center min-w-[100px]">
             <p className="text-xs font-bold text-text-primary">Cerradas</p>
             <p className="text-lg font-bold text-text-primary">
               {resumen.ordenesCerradas}
@@ -148,7 +148,7 @@ export default function CajaPage() {
                 onClick={() =>
                   router.push(`/caja/ordenes/${orden.id}/cobrar`)
                 }
-                className="bg-card rounded-2xl border border-border/60 p-5 text-left hover:border-accent/50 transition-all group"
+                className="bg-card rounded-2xl border-2 border-border/60 p-5 text-left hover:border-accent/50 transition-all group"
               >
                 <div className="flex items-center justify-between mb-3">
                   <div>

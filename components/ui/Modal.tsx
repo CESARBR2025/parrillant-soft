@@ -36,7 +36,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
       <div
-        className="bg-card rounded-2xl border border-border/60 w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95"
+        className="bg-card rounded-2xl border-2 border-border/60 w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95"
         onClick={(e) => e.stopPropagation()}
       >
         {title && (

@@ -107,7 +107,7 @@ export default function HistorialPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-card rounded-2xl border border-border/60 p-4">
+      <div className="bg-card rounded-2xl border-2 border-border/60 p-4">
         <div className="grid gap-3 sm:grid-cols-4">
           <div>
             <label className="text-xs text-muted font-medium block mb-1">
@@ -175,19 +175,19 @@ export default function HistorialPage() {
 
       {/* Totals */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-card rounded-xl border border-border/60 p-4 text-center">
+        <div className="bg-card rounded-xl border-2 border-border/60 p-4 text-center">
           <p className="text-xs font-bold text-text-primary">Efectivo</p>
           <p className="text-lg font-bold text-success">
             ${totales.efectivo.toFixed(2)}
           </p>
         </div>
-        <div className="bg-card rounded-xl border border-border/60 p-4 text-center">
+        <div className="bg-card rounded-xl border-2 border-border/60 p-4 text-center">
           <p className="text-xs font-bold text-text-primary">Tarjeta</p>
           <p className="text-lg font-bold text-info">
             ${totales.tarjeta.toFixed(2)}
           </p>
         </div>
-        <div className="bg-card rounded-xl border border-border/60 p-4 text-center">
+        <div className="bg-card rounded-xl border-2 border-border/60 p-4 text-center">
           <p className="text-xs font-bold text-text-primary">Transferencia</p>
           <p className="text-lg font-bold text-text-accent">
             ${totales.transferencia.toFixed(2)}
@@ -211,7 +211,7 @@ export default function HistorialPage() {
           <p className="text-muted text-sm">No hay órdenes cerradas en este periodo</p>
         </div>
       ) : (
-        <div className="bg-card rounded-2xl border border-border/60 overflow-hidden">
+        <div className="bg-card rounded-2xl border-2 border-border/60 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

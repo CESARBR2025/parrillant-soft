@@ -117,7 +117,7 @@ export function ReceiptPreview({
       </div>
 
       {/* Ticket */}
-      <div className="bg-bg-base rounded-xl border border-border/60 p-5 space-y-3">
+      <div className="bg-bg-base rounded-xl border-2 border-border/60 p-5 space-y-3">
         <div className="text-center pb-3 border-b border-border/60">
           <p className="text-xs font-bold text-text-primary tracking-widest uppercase">
             Parrillant

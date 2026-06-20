@@ -247,17 +247,16 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
           <div>
             <button
               onClick={() => {
-                if (ordenExistente) {
-                  router.push(`/mesero/mesas/${mesa.id}`);
-                } else {
-                  router.push('/mesero');
-                }
+                const destino = ordenExistente
+                  ? `/mesero/mesas/${mesa.id}`
+                  : '/mesero/mapa';
+                window.location.href = destino;
               }}
-              className="text-sm text-muted hover:text-body transition-colors mb-1"
+              className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1"
             >
               ← {ordenExistente ? 'Volver a la orden' : 'Mapa de Mesas'}
             </button>
-            <h1 className="text-xl font-bold text-text-primary">
+            <h1 className="text-lg md:text-xl font-bold text-text-primary">
               Mesa {mesa.numero}
               {mesa.zona && (
                 <span className="text-sm font-normal text-muted ml-2 capitalize">
@@ -342,17 +341,17 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
                   </div>
                   <div className="px-1.5 pb-1.5 pt-2.5 flex flex-col gap-1.5 flex-1">
                     <div className="flex items-start justify-between gap-1">
-                      <h3 className="text-base font-bold text-text-primary line-clamp-2">
+                      <h3 className="text-sm md:text-base font-bold text-text-primary line-clamp-2">
                         {producto.nombre}
                       </h3>
                     </div>
                     {producto.descripcion && (
-                      <p className="text-sm font-semibold line-clamp-2" style={{ color: '#A0A0A0' }}>
+                      <p className="text-xs md:text-sm font-semibold line-clamp-2" style={{ color: '#A0A0A0' }}>
                         {producto.descripcion}
                       </p>
                     )}
                     <div className="flex items-center justify-between mt-auto pt-1.5">
-                      <span className="text-sm font-bold text-accent">
+                      <span className="text-xs md:text-sm font-bold text-accent">
                         ${Number(producto.precio).toFixed(2)}
                       </span>
                       {qty > 0 ? (
@@ -390,7 +389,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
 
       {/* Order summary sidebar (desktop/tablet) */}
       <div className="hidden md:block md:w-72 lg:w-80 shrink-0">
-        <div className="sticky top-6 bg-card rounded-2xl border border-border/60 flex flex-col max-h-[calc(100vh-10rem)]">
+        <div className="sticky top-6 bg-card rounded-2xl border-2 border-border/60 flex flex-col max-h-[calc(100vh-10rem)]">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
             <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
               <ShoppingCart className="w-4 h-4" />
@@ -437,12 +436,12 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
 
       {/* Mobile cart sheet */}
       {showCartSheet && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div className="fixed inset-0 z-50 md:hidden">
           <div
             className="absolute inset-0 bg-black/60"
             onClick={() => setShowCartSheet(false)}
           />
-          <div className="absolute bottom-0 left-0 right-0 bg-card rounded-t-2xl border border-border/60 max-h-[80vh] flex flex-col animate-in slide-in-from-bottom">
+          <div className="absolute bottom-0 left-0 right-0 bg-card rounded-t-2xl border-2 border-border/60 max-h-[80vh] flex flex-col animate-in slide-in-from-bottom">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
               <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
                 <ShoppingCart className="w-4 h-4" />
@@ -502,7 +501,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
       {/* Confirm modal */}
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-card rounded-3xl border border-border/60 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-card rounded-3xl border-2 border-border/60 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col overflow-hidden">
             <div className="bg-gradient-to-r from-accent/10 to-amber-400/10 px-6 pt-6 pb-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">

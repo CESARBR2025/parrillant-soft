@@ -144,7 +144,7 @@ export function ActiveOrderView({ mesa, orden: ordenInicial }: { mesa: Mesa; ord
         </div>
       )}
 
-      <div className="bg-card rounded-2xl border border-border/60 overflow-hidden">
+      <div className="bg-card rounded-2xl border-2 border-border/60 overflow-hidden">
         <div className="px-5 py-3 border-b border-border/40">
           <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">
             Ítems

@@ -102,7 +102,7 @@ export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
             return (
               <div
                 key={orden.id}
-                className="bg-card rounded-2xl border border-border/60 overflow-hidden"
+                className="bg-card rounded-2xl border-2 border-border/60 overflow-hidden"
               >
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : orden.id)}

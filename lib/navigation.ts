@@ -36,7 +36,8 @@ export const NAV_ITEMS: Record<Rol, NavItem[]> = {
     { label: 'Historial', href: '/caja/historial', icon: ClipboardList },
   ],
   mesero: [
-    { label: 'Mapa', href: '/mesero', icon: Grid3x3 },
+    { label: 'Dashboard', href: '/mesero', icon: LayoutDashboard },
+    { label: 'Mapa', href: '/mesero/mapa', icon: Grid3x3 },
     { label: 'Historial', href: '/mesero/ordenes', icon: ScrollText },
   ],
   barra: [

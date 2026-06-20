@@ -21,7 +21,7 @@ export function OrderBill({ items, discount }: OrderBillProps) {
   const total = Math.max(0, subtotal - discount)
 
   return (
-    <div className="bg-bg-base rounded-xl border border-border/60 overflow-hidden">
+    <div className="bg-bg-base rounded-xl border-2 border-border/60 overflow-hidden">
       <div className="px-5 py-3 border-b border-border/60">
         <h3 className="text-sm font-semibold text-text-primary">Cuenta</h3>
       </div>

@@ -29,7 +29,7 @@ export function PaymentPanel({ total, onPay, loading }: PaymentPanelProps) {
     (method !== 'efectivo' && total > 0)
 
   return (
-    <div className="bg-card rounded-2xl border border-border/60 p-5 space-y-5">
+    <div className="bg-card rounded-2xl border-2 border-border/60 p-5 space-y-5">
       <h3 className="text-sm font-semibold text-text-primary">Método de pago</h3>
 
       {/* Payment method selector */}
