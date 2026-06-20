@@ -76,7 +76,7 @@ export function DiscountInput({ subtotal, onChange }: DiscountInputProps) {
             value={value}
             onChange={(e) => handleValueChange(e.target.value)}
             placeholder={type === 'percentage' ? '0%' : '$0'}
-            className="w-full bg-bg-base border border-border/60 rounded-lg px-3 py-1.5 text-sm text-white placeholder-muted focus:outline-none focus:border-accent transition-colors"
+            className="w-full bg-bg-base border border-border/60 rounded-lg px-3 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
           />
           {type === 'percentage' && value && (
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">

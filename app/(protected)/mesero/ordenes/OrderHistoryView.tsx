@@ -55,7 +55,7 @@ export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Historial de Órdenes</h1>
+        <h1 className="text-xl font-bold text-text-primary">Historial de Órdenes</h1>
         <button
           onClick={() => router.push('/mesero')}
           className="text-sm text-muted hover:text-body transition-colors"
@@ -110,7 +110,7 @@ export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
                 >
                   <div className="flex items-center gap-3">
                     <div>
-                      <span className="text-sm font-semibold text-white">
+                      <span className="text-sm font-semibold text-text-primary">
                         Mesa {orden.mesas?.numero}
                       </span>
                       {orden.mesas?.zona && (

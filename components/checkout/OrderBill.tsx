@@ -23,7 +23,7 @@ export function OrderBill({ items, discount }: OrderBillProps) {
   return (
     <div className="bg-bg-base rounded-xl border border-border/60 overflow-hidden">
       <div className="px-5 py-3 border-b border-border/60">
-        <h3 className="text-sm font-semibold text-white">Cuenta</h3>
+        <h3 className="text-sm font-semibold text-text-primary">Cuenta</h3>
       </div>
 
       <ul className="divide-y divide-border/40">
@@ -41,7 +41,7 @@ export function OrderBill({ items, discount }: OrderBillProps) {
                   </p>
                 )}
               </div>
-              <span className="text-sm text-white font-medium shrink-0">
+              <span className="text-sm text-text-primary font-medium shrink-0">
                 ${(item.cantidad * item.precio_unitario).toFixed(2)}
               </span>
             </div>
@@ -52,19 +52,19 @@ export function OrderBill({ items, discount }: OrderBillProps) {
       {/* Totals */}
       <div className="border-t border-border/60 px-5 py-3 space-y-1.5">
         <div className="flex justify-between text-sm">
-          <span className="text-muted">Subtotal</span>
+          <span className="text-text-primary font-bold">Subtotal</span>
           <span className="text-body">${subtotal.toFixed(2)}</span>
         </div>
 
         {discount > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-green-400">Descuento</span>
-            <span className="text-green-400">-${discount.toFixed(2)}</span>
+            <span className="text-success">Descuento</span>
+            <span className="text-success">-${discount.toFixed(2)}</span>
           </div>
         )}
 
         <div className="flex justify-between text-base font-bold pt-1.5 border-t border-border/40">
-          <span className="text-white">Total</span>
+          <span className="text-text-primary">Total</span>
           <span className="text-accent">${total.toFixed(2)}</span>
         </div>
       </div>

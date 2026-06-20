@@ -1,15 +1,76 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg-base: #1a1f35;
-  --color-bg-gradient: #1e2340;
-  --color-card: #252b45;
-  --color-accent: #e8520a;
-  --color-accent-hover: #d44d0f;
-  --color-body: #e8eaf0;
-  --color-muted: #9ba3b8;
-  --color-border: #2e3555;
+  /* === ACENTO NARANJA === */
+  --color-accent: #F97316;
+  --color-accent-dark: #EA6C0A;
+  --color-accent-light: #FFF4ED;
+  --color-accent-subtle: #FFE4CC;
+  --color-accent-border: rgba(249, 115, 22, 0.25);
 
-  --font-sans: Inter, system-ui, sans-serif;
+  /* === SUPERFICIES === */
+  --color-bg-app: #FFFFFF;
+  --color-bg-sidebar: #FFFFFF;
+  --color-bg-card: #FFFFFF;
+  --color-bg-header-accent: #F97316;
+  --color-bg-input: #F8F8F8;
+  --color-bg-table-row-alt: #FAFAFA;
+  --color-bg-table-row-hover: #FFF8F3;
+
+  /* === TEXTO === */
+  --color-text-primary: #000000;
+  --color-text-secondary: #4B5563;
+  --color-text-muted: #9CA3AF;
+  --color-text-accent: #F97316;
+  --color-text-on-accent: #FFFFFF;
+  --color-text-success: #16A34A;
+  --color-text-danger: #DC2626;
+  --color-text-disabled: #D1D5DB;
+
+  /* === BORDES === */
+  --color-border-light: #F0F0F0;
+  --color-border-default: #F1F1F1;
+  --color-border-medium: #D4D4D4;
+  --color-border-focus: rgba(249, 115, 22, 0.5);
+
+  /* === SEMÁNTICOS === */
+  --color-success: #22C55E;
+  --color-success-bg: #F0FDF4;
+  --color-danger: #EF4444;
+  --color-danger-bg: #FEF2F2;
+  --color-warning: #F59E0B;
+  --color-info: #3B82F6;
+
+  /* === SOMBRAS === */
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --shadow-elevated: 0 4px 24px rgba(0, 0, 0, 0.08), 0 1px 6px rgba(0, 0, 0, 0.05);
+  --shadow-accent: 0 4px 12px rgba(249, 115, 22, 0.3);
+  --shadow-sidebar: 2px 0 8px rgba(0, 0, 0, 0.04);
+
+  /* === RADIO === */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+
+  /* === TIPOGRAFÍA === */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* === BACKWARD COMPAT — tokens anteriores === */
+  --color-bg-base: #F5F5F5;
+  --color-card: #FFFFFF;
+  --color-accent-hover: #EA6C0A;
+  --color-body: #000000;
+  --color-muted: #9CA3AF;
+  --color-border: #E2E2E2;
+  --color-bg-gradient: #F0F0F0;
+  --color-surface-1: #FFFFFF;
+  --color-surface-2: #F0F0F0;
+  --color-surface-3: #F8F8F8;
+  --color-accent-press: #EA6C0A;
+  --color-accent-tint: #FFF4ED;
+  --color-text-tertiary: #9CA3AF;
+  --color-border-default: #F1F1F1;
+  --color-border-strong: #E5E7EB;
 }
-

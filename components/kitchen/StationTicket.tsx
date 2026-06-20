@@ -47,7 +47,7 @@ export function StationTicket({ order, onMarkReady, isPending }: StationTicketPr
       <div className="flex items-center justify-between px-5 pt-5 pb-3">
         <div className="flex items-center gap-3">
           <span className={`w-3 h-3 rounded-full ${getUrgencyDot(order.elapsedMs)}`} />
-          <span className="text-2xl font-bold text-white">MESA {order.mesa_numero}</span>
+          <span className="text-2xl font-bold text-text-primary">MESA {order.mesa_numero}</span>
         </div>
         <span className="text-lg text-muted font-mono tabular-nums">
           {formatHora(order.created_at)}
@@ -73,7 +73,7 @@ export function StationTicket({ order, onMarkReady, isPending }: StationTicketPr
         <button
           onClick={() => onMarkReady(order.id)}
           disabled={isPending}
-          className="px-6 py-2.5 rounded-xl bg-accent hover:bg-accent-hover
+          className="px-6 py-2.5 rounded-xl bg-accent hover:bg-accent-dark
             text-white font-semibold text-base transition-colors
             disabled:opacity-50 disabled:cursor-not-allowed"
         >

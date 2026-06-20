@@ -267,7 +267,7 @@ export default function CobrarPage() {
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">
+        <h1 className="text-2xl font-bold text-text-primary">
           Mesa {orden.mesas?.numero}
         </h1>
         {orden.mesas?.zona && (
@@ -277,7 +277,7 @@ export default function CobrarPage() {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3 text-sm text-red-400">
+        <div className="bg-danger/10 border border-danger/30 rounded-xl px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}

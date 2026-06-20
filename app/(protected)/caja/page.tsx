@@ -105,21 +105,20 @@ export default function CajaPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Caja</h1>
-          <p className="text-sm text-muted mt-1">Órdenes listas para cobrar</p>
+          <h1 className="text-2xl font-bold text-text-primary">Caja</h1>
         </div>
 
         {/* Day summary */}
         <div className="flex gap-3">
           <div className="bg-card border border-border/60 rounded-xl px-4 py-2.5 text-center min-w-[100px]">
-            <p className="text-xs text-muted">Ventas hoy</p>
+            <p className="text-xs font-bold text-text-primary">Ventas hoy</p>
             <p className="text-lg font-bold text-accent">
               ${resumen.totalVentas.toFixed(2)}
             </p>
           </div>
           <div className="bg-card border border-border/60 rounded-xl px-4 py-2.5 text-center min-w-[100px]">
-            <p className="text-xs text-muted">Cerradas</p>
-            <p className="text-lg font-bold text-white">
+            <p className="text-xs font-bold text-text-primary">Cerradas</p>
+            <p className="text-lg font-bold text-text-primary">
               {resumen.ordenesCerradas}
             </p>
           </div>
@@ -153,7 +152,7 @@ export default function CajaPage() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <span className="text-lg font-bold text-white">
+                    <span className="text-lg font-bold text-text-primary">
                       Mesa {orden.mesas?.numero}
                     </span>
                     {orden.mesas?.zona && (

@@ -124,7 +124,7 @@ export function ActiveOrderView({ mesa, orden: ordenInicial }: { mesa: Mesa; ord
           >
             ← Mapa de Mesas
           </button>
-          <h1 className="text-xl font-bold text-white">
+          <h1 className="text-xl font-bold text-text-primary">
             Mesa {mesa.numero}
             {mesa.zona && (
               <span className="text-sm font-normal text-muted ml-2 capitalize">
@@ -139,14 +139,14 @@ export function ActiveOrderView({ mesa, orden: ordenInicial }: { mesa: Mesa; ord
       </div>
 
       {orden.notas && (
-        <div className="rounded-xl bg-yellow-900/20 border border-yellow-800/30 p-3 text-sm text-yellow-400">
+        <div className="rounded-xl bg-warning/10 border border-warning/20 p-3 text-sm text-warning">
           Nota: {orden.notas}
         </div>
       )}
 
       <div className="bg-card rounded-2xl border border-border/60 overflow-hidden">
         <div className="px-5 py-3 border-b border-border/40">
-          <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">
+          <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider">
             Ítems
             <span className="ml-2 font-normal normal-case text-xs">
               ({orden.detalles_orden.length})
@@ -200,7 +200,7 @@ export function ActiveOrderView({ mesa, orden: ordenInicial }: { mesa: Mesa; ord
         )}
 
         {orden.estado === 'entregado' && (
-          <div className="rounded-xl bg-blue-900/20 border border-blue-800/30 p-3 text-sm text-blue-400 text-center">
+          <div className="rounded-xl bg-info/10 border border-info/20 p-3 text-sm text-info text-center">
             Esperando que Caja procese el pago
           </div>
         )}

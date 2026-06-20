@@ -33,7 +33,7 @@ export function TableCard({ numero, zona, capacidad, estado, tiempoOcupada, onCl
         <span className="text-xs font-medium text-muted">{cfg.label}</span>
       </div>
 
-      <span className="text-2xl font-bold text-white mt-1">Mesa {numero}</span>
+      <span className="text-2xl font-bold text-text-primary mt-1">Mesa {numero}</span>
 
       <div className="flex items-center gap-3 mt-2 text-xs text-muted">
         {zona && (

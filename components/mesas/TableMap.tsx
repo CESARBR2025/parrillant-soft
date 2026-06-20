@@ -112,7 +112,7 @@ export function TableMap({ initialMesas }: TableMapProps) {
         const mesasZona = mesas.filter(m => (m.zona ?? 'sin_zona') === zona);
         return (
           <section key={zona}>
-            <h2 className="text-sm font-semibold text-muted uppercase tracking-wider mb-3 px-1">
+            <h2 className="text-sm font-bold text-text-primary uppercase tracking-wider mb-3 px-1">
               {zona === 'sin_zona' ? 'General' : zona.replace('_', ' ')}
             </h2>
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">

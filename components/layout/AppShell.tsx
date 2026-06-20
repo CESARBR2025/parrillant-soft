@@ -5,16 +5,18 @@ import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { UserMenu } from './UserMenu';
 import { Menu } from 'lucide-react';
+import { useHeaderActions } from '@/components/providers/HeaderActionsProvider';
 
 interface AppShellProps {
   children: ReactNode;
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const { headerCenter } = useHeaderActions();
 
   return (
-    <div className="min-h-screen bg-bg-base flex">
+    <div className="min-h-screen bg-bg-app flex">
       {/* Sidebar (desktop) */}
       <Sidebar
         collapsed={sidebarCollapsed}
@@ -24,7 +26,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top header */}
-        <header className="h-16 bg-card border-b border-border/60 flex items-center justify-between px-4 lg:px-6">
+        <header className="h-16 bg-card border-b-2 border-[#F6F6F6] flex items-center justify-between px-4 lg:px-6">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarCollapsed((prev) => !prev)}
@@ -32,6 +34,15 @@ export function AppShell({ children }: AppShellProps) {
             >
               <Menu className="w-5 h-5" />
             </button>
+            <h1 className="text-lg font-bold tracking-tight hidden sm:block">
+              <span className="text-text-primary">Parrilla </span>
+              <span className="bg-gradient-to-r from-accent to-amber-400 bg-clip-text text-transparent">
+                Norteña Soft
+              </span>
+            </h1>
+          </div>
+          <div className="flex-1 max-w-md mx-4 hidden md:block">
+            {headerCenter}
           </div>
           <UserMenu />
         </header>

@@ -1,5 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Grid3x3,
+  ScrollText,
   LayoutDashboard,
   CookingPot,
   Wine,
@@ -34,8 +36,8 @@ export const NAV_ITEMS: Record<Rol, NavItem[]> = {
     { label: 'Historial', href: '/caja/historial', icon: ClipboardList },
   ],
   mesero: [
-    { label: 'Mapa', href: '/mesero', icon: LayoutDashboard },
-    { label: 'Historial', href: '/mesero/ordenes', icon: ClipboardList },
+    { label: 'Mapa', href: '/mesero', icon: Grid3x3 },
+    { label: 'Historial', href: '/mesero/ordenes', icon: ScrollText },
   ],
   barra: [
     { label: 'Barra', href: '/barra', icon: Wine },

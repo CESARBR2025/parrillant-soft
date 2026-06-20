@@ -103,10 +103,7 @@ export default function HistorialPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Historial de Ventas</h1>
-        <p className="text-sm text-muted mt-1">
-          Órdenes cerradas y corte de caja
-        </p>
+        <h1 className="text-2xl font-bold text-text-primary">Historial de Ventas</h1>
       </div>
 
       {/* Filters */}
@@ -122,7 +119,7 @@ export default function HistorialPage() {
                 type="date"
                 value={fechaInicio}
                 onChange={(e) => setFechaInicio(e.target.value)}
-                className="w-full bg-bg-base border border-border/60 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition-colors"
+                className="w-full bg-bg-base border border-border/60 rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent transition-colors"
               />
             </div>
           </div>
@@ -137,7 +134,7 @@ export default function HistorialPage() {
                 type="date"
                 value={fechaFin}
                 onChange={(e) => setFechaFin(e.target.value)}
-                className="w-full bg-bg-base border border-border/60 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition-colors"
+                className="w-full bg-bg-base border border-border/60 rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent transition-colors"
               />
             </div>
           </div>
@@ -149,7 +146,7 @@ export default function HistorialPage() {
             <select
               value={filtroMetodo}
               onChange={(e) => setFiltroMetodo(e.target.value)}
-              className="w-full bg-bg-base border border-border/60 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition-colors"
+              className="w-full bg-bg-base border border-border/60 rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-accent transition-colors"
             >
               <option value="todas">Todas</option>
               <option value="efectivo">Efectivo</option>
@@ -169,7 +166,7 @@ export default function HistorialPage() {
                 value={buscandoMesero}
                 onChange={(e) => setBuscandoMesero(e.target.value)}
                 placeholder="Buscar mesero..."
-                className="w-full bg-bg-base border border-border/60 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-muted focus:outline-none focus:border-accent transition-colors"
+                className="w-full bg-bg-base border border-border/60 rounded-lg pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors"
               />
             </div>
           </div>
@@ -179,25 +176,25 @@ export default function HistorialPage() {
       {/* Totals */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-card rounded-xl border border-border/60 p-4 text-center">
-          <p className="text-xs text-muted">Efectivo</p>
-          <p className="text-lg font-bold text-green-400">
+          <p className="text-xs font-bold text-text-primary">Efectivo</p>
+          <p className="text-lg font-bold text-success">
             ${totales.efectivo.toFixed(2)}
           </p>
         </div>
         <div className="bg-card rounded-xl border border-border/60 p-4 text-center">
-          <p className="text-xs text-muted">Tarjeta</p>
-          <p className="text-lg font-bold text-blue-400">
+          <p className="text-xs font-bold text-text-primary">Tarjeta</p>
+          <p className="text-lg font-bold text-info">
             ${totales.tarjeta.toFixed(2)}
           </p>
         </div>
         <div className="bg-card rounded-xl border border-border/60 p-4 text-center">
-          <p className="text-xs text-muted">Transferencia</p>
-          <p className="text-lg font-bold text-purple-400">
+          <p className="text-xs font-bold text-text-primary">Transferencia</p>
+          <p className="text-lg font-bold text-text-accent">
             ${totales.transferencia.toFixed(2)}
           </p>
         </div>
         <div className="bg-card rounded-xl border border-accent/30 p-4 text-center">
-          <p className="text-xs text-muted">Total</p>
+          <p className="text-xs font-bold text-text-primary">Total</p>
           <p className="text-lg font-bold text-accent">
             ${totales.granTotal.toFixed(2)}
           </p>
@@ -219,19 +216,19 @@ export default function HistorialPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/60 bg-bg-base/50">
-                  <th className="text-left px-4 py-3 text-muted font-medium">
+                  <th className="text-left px-4 py-3 text-text-primary font-bold">
                     Mesa
                   </th>
-                  <th className="text-left px-4 py-3 text-muted font-medium">
+                  <th className="text-left px-4 py-3 text-text-primary font-bold">
                     Mesero
                   </th>
-                  <th className="text-left px-4 py-3 text-muted font-medium">
+                  <th className="text-left px-4 py-3 text-text-primary font-bold">
                     Método
                   </th>
-                  <th className="text-right px-4 py-3 text-muted font-medium">
+                  <th className="text-right px-4 py-3 text-text-primary font-bold">
                     Total
                   </th>
-                  <th className="text-right px-4 py-3 text-muted font-medium">
+                  <th className="text-right px-4 py-3 text-text-primary font-bold">
                     Hora
                   </th>
                 </tr>
@@ -242,7 +239,7 @@ export default function HistorialPage() {
                     key={orden.id}
                     className="hover:bg-bg-base/30 transition-colors"
                   >
-                    <td className="px-4 py-3 text-white font-medium">
+                    <td className="px-4 py-3 text-text-primary font-medium">
                       Mesa {orden.mesas?.numero}
                       {orden.mesas?.zona && (
                         <span className="text-muted ml-1">
@@ -259,7 +256,7 @@ export default function HistorialPage() {
                         {METODO_LABEL[orden.metodo_pago ?? ''] ?? '-'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right text-white font-semibold">
+                    <td className="px-4 py-3 text-right text-text-primary font-semibold">
                       ${Number(orden.total ?? 0).toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-right text-muted text-xs">
