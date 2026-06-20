@@ -4,7 +4,6 @@ import { useState, type ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { BottomNav } from './BottomNav';
 import { UserMenu } from './UserMenu';
-import { Menu } from 'lucide-react';
 import { useHeaderActions } from '@/components/providers/HeaderActionsProvider';
 
 interface AppShellProps {
@@ -28,12 +27,6 @@ export function AppShell({ children }: AppShellProps) {
         {/* Top header */}
         <header className="h-16 bg-card border-b-2 border-[#F6F6F6] flex items-center justify-between px-4 lg:px-6">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarCollapsed((prev) => !prev)}
-              className="lg:hidden p-2 rounded-xl text-muted hover:text-body hover:bg-bg-base transition-colors"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
             <h1 className="text-lg font-bold tracking-tight hidden sm:block">
               <span className="text-text-primary">Parrilla </span>
               <span className="bg-gradient-to-r from-accent to-amber-400 bg-clip-text text-transparent">

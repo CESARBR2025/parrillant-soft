@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Plus, Minus, ShoppingCart, X, ChevronRight, UtensilsCrossed, Star, Search } from 'lucide-react';
+import { Plus, Minus, ShoppingCart, X, ChevronRight, UtensilsCrossed, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { crearOrden } from '@/app/actions/crearOrden';
@@ -337,7 +337,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
                       alt={producto.nombre}
                       fill
                       className="object-cover"
-                      sizes="(max-width: 768px) 50vw, 33vw"
+                      sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                     />
                   </div>
                   <div className="px-1.5 pb-1.5 pt-2.5 flex flex-col gap-1.5 flex-1">
@@ -345,9 +345,6 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
                       <h3 className="text-base font-bold text-text-primary line-clamp-2">
                         {producto.nombre}
                       </h3>
-                      <span className="text-xs font-bold text-accent shrink-0">
-                        ${Number(producto.precio).toFixed(2)}
-                      </span>
                     </div>
                     {producto.descripcion && (
                       <p className="text-sm font-semibold line-clamp-2" style={{ color: '#A0A0A0' }}>
@@ -355,10 +352,9 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
                       </p>
                     )}
                     <div className="flex items-center justify-between mt-auto pt-1.5">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                        <span className="text-sm font-medium text-muted">5.0</span>
-                      </div>
+                      <span className="text-sm font-bold text-accent">
+                        ${Number(producto.precio).toFixed(2)}
+                      </span>
                       {qty > 0 ? (
                         <div className="flex items-center gap-1.5">
                           <button
@@ -378,9 +374,9 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
                       ) : (
                         <button
                           onClick={() => addToCart(producto)}
-                           className="rounded-lg bg-accent text-white px-3 py-1.5 text-sm font-medium hover:bg-accent-dark transition-colors"
+                          className="w-7 h-7 rounded-lg bg-accent text-white flex items-center justify-center hover:bg-accent-dark transition-colors"
                         >
-                          + Agregar
+                          <Plus className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -413,22 +409,13 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
                 <CartItemRow
                   key={item.producto.id}
                   item={item}
+                  imagenUrl={getProductImage(item.producto, item.producto.id)}
                   onRemove={removeFromCart}
                   onIncrement={addToCart}
                   onUpdateNotes={updateItemNotes}
                 />
               ))
             )}
-          </div>
-
-          <div className="px-5 py-3 border-t border-border/40">
-            <textarea
-              placeholder="Nota general para la mesa..."
-              value={notaGeneral}
-              onChange={e => setNotaGeneral(e.target.value)}
-              rows={2}
-              className="w-full bg-bg-base rounded-xl border border-border/60 px-3 py-2 text-sm text-body placeholder:text-muted resize-none focus:outline-none focus:ring-1 focus:ring-accent/50"
-            />
           </div>
 
           <div className="px-5 py-4 border-t border-border/40 space-y-3">
@@ -482,22 +469,13 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
                   <CartItemRow
                     key={item.producto.id}
                     item={item}
+                    imagenUrl={getProductImage(item.producto, item.producto.id)}
                     onRemove={removeFromCart}
                     onIncrement={addToCart}
                     onUpdateNotes={updateItemNotes}
                   />
                 ))
               )}
-            </div>
-
-            <div className="px-5 py-3 border-t border-border/40">
-              <textarea
-                placeholder="Nota general para la mesa..."
-                value={notaGeneral}
-                onChange={e => setNotaGeneral(e.target.value)}
-                rows={2}
-                className="w-full bg-bg-base rounded-xl border border-border/60 px-3 py-2 text-sm text-body placeholder:text-muted resize-none focus:outline-none focus:ring-1 focus:ring-accent/50"
-              />
             </div>
 
             <div className="px-5 py-4 border-t border-border/40 space-y-3">
@@ -523,53 +501,68 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
 
       {/* Confirm modal */}
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-card rounded-2xl border border-border/60 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 pt-6 pb-0">
-              <h2 className="text-lg font-semibold text-text-primary">Confirmar pedido</h2>
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="text-muted hover:text-body transition-colors p-1 rounded-lg hover:bg-bg-base"
-              >
-                <X className="w-5 h-5" />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-card rounded-3xl border border-border/60 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="bg-gradient-to-r from-accent/10 to-amber-400/10 px-6 pt-6 pb-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center">
+                    <ShoppingCart className="w-5 h-5 text-accent" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-text-primary">Confirmar pedido</h2>
+                    <p className="text-xs text-muted mt-0.5">
+                      Mesa {mesa.numero}
+                      {mesa.zona && (
+                        <> · <span className="capitalize">{mesa.zona.replace('_', ' ')}</span></>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="text-muted hover:text-body transition-colors p-1.5 rounded-lg hover:bg-bg-base"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4">
-              <div className="text-sm text-muted">
-                Mesa <span className="text-text-primary font-medium">{mesa.numero}</span>
-                {mesa.zona && (
-                  <> · <span className="capitalize">{mesa.zona.replace('_', ' ')}</span></>
-                )}
-              </div>
-
-              <div className="bg-bg-base rounded-xl divide-y divide-border/40">
+              <div className="bg-bg-base rounded-2xl divide-y divide-border/40">
                 {[...cart.values()].map(item => (
-                  <div key={item.producto.id} className="flex items-center justify-between px-4 py-3">
+                  <div key={item.producto.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-card">
+                      <Image
+                        src={getProductImage(item.producto, item.producto.id)}
+                        alt={item.producto.nombre}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-text-primary">
+                      <p className="text-sm font-semibold text-text-primary">
                         {item.cantidad}x {item.producto.nombre}
                       </p>
                       {item.notas && (
-                        <p className="text-xs text-muted italic truncate mt-0.5">{item.notas}</p>
+                        <p className="text-xs text-muted italic truncate mt-0.5 flex items-center gap-1">
+                          <span className="w-1 h-1 rounded-full bg-yellow-500" />
+                          {item.notas}
+                        </p>
                       )}
                     </div>
-                    <span className="text-sm text-muted ml-3">
+                    <span className="text-sm font-bold text-text-primary ml-3">
                       ${(item.producto.precio * item.cantidad).toFixed(2)}
                     </span>
                   </div>
                 ))}
               </div>
 
-              {notaGeneral && (
-                <div className="rounded-xl bg-warning/10 border border-warning/20 p-3 text-sm text-warning">
-                  Nota: {notaGeneral}
-                </div>
-              )}
-
-              <div className="flex justify-between text-lg font-bold text-text-primary pt-2">
-                <span>Total estimado</span>
-                <span>${totalEstimado.toFixed(2)}</span>
+              <div className="flex justify-between items-center py-3 px-1">
+                <span className="text-base font-bold text-text-primary">Total estimado</span>
+                <span className="text-xl font-bold bg-gradient-to-r from-accent to-amber-400 bg-clip-text text-transparent">
+                  ${totalEstimado.toFixed(2)}
+                </span>
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -598,11 +591,13 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
 
 function CartItemRow({
   item,
+  imagenUrl,
   onRemove,
   onIncrement,
   onUpdateNotes,
 }: {
   item: CartItem;
+  imagenUrl: string;
   onRemove: (id: number) => void;
   onIncrement: (producto: Producto) => void;
   onUpdateNotes: (id: number, notes: string) => void;
@@ -610,24 +605,24 @@ function CartItemRow({
   const [showNotes, setShowNotes] = useState(false);
 
   return (
-    <div className="bg-bg-base rounded-xl p-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-text-primary truncate">
-            {item.producto.nombre}
-          </p>
-          <p className="text-xs text-muted">
-            ${Number(item.producto.precio).toFixed(2)} c/u
-          </p>
+    <div className="flex gap-2">
+      <div className="flex flex-col items-center gap-1.5">
+        <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0">
+          <Image
+            src={imagenUrl}
+            alt={item.producto.nombre}
+            fill
+            className="object-cover"
+          />
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => onRemove(item.producto.id)}
             className="w-6 h-6 rounded-lg bg-bg-base text-muted hover:text-body flex items-center justify-center transition-colors"
           >
             <Minus className="w-3 h-3" />
           </button>
-          <span className="w-5 text-center text-sm font-medium text-text-primary">{item.cantidad}</span>
+          <span className="w-5 text-center text-xs font-medium text-text-primary">{item.cantidad}</span>
           <button
             onClick={() => onIncrement(item.producto)}
             className="w-6 h-6 rounded-lg bg-accent text-white flex items-center justify-center hover:bg-accent-dark transition-colors"
@@ -636,26 +631,28 @@ function CartItemRow({
           </button>
         </div>
       </div>
-
-      <button
-        onClick={() => setShowNotes(!showNotes)}
-        className={`text-xs mt-2 transition-colors ${
-          item.notas ? 'text-accent' : 'text-muted hover:text-body'
-        }`}
-      >
-        {item.notas ? `Nota: ${item.notas}` : '+ Agregar nota'}
-      </button>
-
-      {showNotes && (
-        <input
-          type="text"
-          placeholder="Ej: sin cebolla, término medio..."
-          value={item.notas}
-          onChange={e => onUpdateNotes(item.producto.id, e.target.value)}
-          className="w-full bg-card rounded-lg border border-border/60 px-3 py-1.5 text-xs text-body placeholder:text-muted mt-2 focus:outline-none focus:ring-1 focus:ring-accent/50"
-          autoFocus
-        />
-      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-text-primary truncate mb-1.5">
+          {item.producto.nombre}
+        </p>
+        {item.notas || showNotes ? (
+          <input
+            type="text"
+            placeholder="Ej: sin cebolla, término medio..."
+            value={item.notas}
+            onChange={e => onUpdateNotes(item.producto.id, e.target.value)}
+            className="w-full rounded-lg border px-3 py-1.5 text-xs text-body placeholder:text-muted focus:outline-none transition-colors border-yellow-500/30 bg-yellow-500/5 focus:bg-card focus:border-border/60"
+            autoFocus={!item.notas}
+          />
+        ) : (
+          <button
+            onClick={() => setShowNotes(true)}
+            className="w-full text-xs py-1 px-2 rounded-lg border bg-yellow-500/10 text-yellow-600 border-yellow-500/20 hover:bg-yellow-500/20 transition-colors"
+          >
+            + Agregar nota
+          </button>
+        )}
+      </div>
     </div>
   );
 }
