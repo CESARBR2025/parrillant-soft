@@ -29,8 +29,8 @@ export function PaymentPanel({ total, onPay, loading }: PaymentPanelProps) {
     (method !== 'efectivo' && total > 0)
 
   return (
-    <div className="bg-card rounded-2xl border border-border/60 p-5 space-y-5">
-      <h3 className="text-sm font-semibold text-white">Método de pago</h3>
+    <div className="bg-card rounded-2xl border-2 border-border/60 p-5 space-y-5">
+      <h3 className="text-sm font-semibold text-text-primary">Método de pago</h3>
 
       {/* Payment method selector */}
       <div className="grid grid-cols-3 gap-2">
@@ -41,7 +41,7 @@ export function PaymentPanel({ total, onPay, loading }: PaymentPanelProps) {
             onClick={() => setMethod(key)}
             className={`flex flex-col items-center gap-1.5 p-3 rounded-xl text-xs font-medium transition-all ${
               method === key
-                ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                ? 'bg-accent text-white shadow-accent'
                 : 'bg-bg-base text-muted border border-border/60 hover:text-body hover:border-border'
             }`}
           >
@@ -69,7 +69,7 @@ export function PaymentPanel({ total, onPay, loading }: PaymentPanelProps) {
               value={recibido}
               onChange={(e) => setRecibido(e.target.value)}
               placeholder="0.00"
-              className="w-full bg-bg-base border border-border/60 rounded-xl pl-10 pr-4 py-4 text-2xl font-bold text-white placeholder-muted focus:outline-none focus:border-accent transition-colors"
+              className="w-full bg-bg-base border border-border/60 rounded-xl pl-10 pr-4 py-4 text-2xl font-bold text-text-primary placeholder-text-muted focus:outline-none focus:border-accent transition-colors"
             />
           </div>
           <ChangeCalculator total={total} recibido={montoRecibido} />
@@ -79,7 +79,7 @@ export function PaymentPanel({ total, onPay, loading }: PaymentPanelProps) {
       {method !== 'efectivo' && (
         <p className="text-xs text-muted text-center py-2">
           Confirma el cobro de{' '}
-          <span className="text-white font-semibold">${total.toFixed(2)}</span>{' '}
+          <span className="text-text-primary font-semibold">${total.toFixed(2)}</span>{' '}
           con {METHODS.find((m) => m.key === method)?.label}
         </p>
       )}
@@ -88,7 +88,7 @@ export function PaymentPanel({ total, onPay, loading }: PaymentPanelProps) {
       <button
         onClick={() => onPay(method, montoRecibido)}
         disabled={!puedePagar || loading}
-        className="w-full bg-accent text-white font-bold text-lg py-4 rounded-xl hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-accent/20"
+        className="w-full bg-accent text-white font-bold text-lg py-4 rounded-xl hover:bg-accent-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-accent"
       >
         {loading
           ? 'Procesando...'

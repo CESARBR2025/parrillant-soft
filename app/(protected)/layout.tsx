@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { SessionProvider } from '@/components/providers/SessionProvider';
+import { HeaderActionsProvider } from '@/components/providers/HeaderActionsProvider';
 import { AppShell } from '@/components/layout/AppShell';
 import type { Perfil } from '@/types/roles';
 
@@ -28,8 +29,10 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <SessionProvider initialUser={user} initialPerfil={perfil as unknown as Perfil}>
-      <AppShell>{children}</AppShell>
-    </SessionProvider>
+      <SessionProvider initialUser={user} initialPerfil={perfil as unknown as Perfil}>
+        <HeaderActionsProvider>
+          <AppShell>{children}</AppShell>
+        </HeaderActionsProvider>
+      </SessionProvider>
   );
 }

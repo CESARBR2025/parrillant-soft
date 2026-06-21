@@ -1,5 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Grid3x3,
+  ScrollText,
   LayoutDashboard,
   CookingPot,
   Wine,
@@ -17,6 +19,7 @@ export interface NavItem {
 export const NAV_ITEMS: Record<Rol, NavItem[]> = {
   super_admin: [
     { label: 'Panel', href: '/admin', icon: LayoutDashboard },
+    { label: 'Mapa', href: '/mesero/mapa', icon: Grid3x3 },
     { label: 'Cocina', href: '/cocina', icon: CookingPot },
     { label: 'Barra', href: '/barra', icon: Wine },
     { label: 'Caja', href: '/caja', icon: CreditCard },
@@ -24,6 +27,7 @@ export const NAV_ITEMS: Record<Rol, NavItem[]> = {
   ],
   admin: [
     { label: 'Panel', href: '/admin', icon: LayoutDashboard },
+    { label: 'Mapa', href: '/mesero/mapa', icon: Grid3x3 },
     { label: 'Cocina', href: '/cocina', icon: CookingPot },
     { label: 'Barra', href: '/barra', icon: Wine },
     { label: 'Caja', href: '/caja', icon: CreditCard },
@@ -34,8 +38,9 @@ export const NAV_ITEMS: Record<Rol, NavItem[]> = {
     { label: 'Historial', href: '/caja/historial', icon: ClipboardList },
   ],
   mesero: [
-    { label: 'Mapa', href: '/mesero', icon: LayoutDashboard },
-    { label: 'Historial', href: '/mesero/ordenes', icon: ClipboardList },
+    { label: 'Dashboard', href: '/mesero', icon: LayoutDashboard },
+    { label: 'Mapa', href: '/mesero/mapa', icon: Grid3x3 },
+    { label: 'Historial', href: '/mesero/ordenes', icon: ScrollText },
   ],
   barra: [
     { label: 'Barra', href: '/barra', icon: Wine },

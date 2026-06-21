@@ -91,7 +91,7 @@ export default function OrderCard({ orden, rolUsuario }: OrderCardProps) {
             {/* Encabezado */}
             <div className="flex items-center justify-between bg-bg-base/50 px-5 py-3.5 border-b border-border/40">
                 <div>
-                    <span className="text-base font-bold text-white">
+                    <span className="text-base font-bold text-text-primary">
                         Mesa {orden.mesas?.numero}
                     </span>
                     {orden.mesas?.zona && (
@@ -131,8 +131,8 @@ export default function OrderCard({ orden, rolUsuario }: OrderCardProps) {
             {puedeVerPrecio && (
                 <div className="border-t border-border/40 px-5 py-3">
                     <div className="flex justify-between text-sm font-semibold">
-                        <span className="text-muted">Total estimado</span>
-                        <span className="text-white">${totalEstimado.toFixed(2)}</span>
+                        <span className="text-text-primary font-bold">Total estimado</span>
+                        <span className="text-text-primary">${totalEstimado.toFixed(2)}</span>
                     </div>
                 </div>
             )}
@@ -187,8 +187,8 @@ export default function OrderCard({ orden, rolUsuario }: OrderCardProps) {
                     <button
                         onClick={() => handleCambiarEstado('cancelado')}
                         disabled={isPending}
-                        className="rounded-xl border border-red-800/40 px-4 py-2.5 text-sm font-medium text-red-400
-                       hover:bg-red-900/20 disabled:opacity-50 transition-colors"
+                        className="rounded-xl border border-danger/30 px-4 py-2.5 text-sm font-medium text-danger
+                       hover:bg-danger/10 disabled:opacity-50 transition-colors"
                     >
                         Cancelar
                     </button>

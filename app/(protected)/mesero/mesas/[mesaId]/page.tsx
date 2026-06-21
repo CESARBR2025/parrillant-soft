@@ -34,13 +34,15 @@ export default async function MesaOrdenPage({
         notas,
         listo,
         tipo,
+        ronda,
+        servido,
         producto_id,
         precio_unitario,
         productos_menu (nombre, precio)
       )
     `)
     .eq('mesa_id', Number(mesaId))
-    .in('estado', ['pendiente', 'en_preparacion', 'listo', 'entregado'])
+    .in('estado', ['pendiente', 'en_preparacion', 'listo', 'entregado', 'cuenta_solicitada'])
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
@@ -49,5 +51,16 @@ export default async function MesaOrdenPage({
     redirect(`/mesero/mesas/${mesaId}/nueva`);
   }
 
-  return <ActiveOrderView mesa={mesa} orden={orden} />;
+  const ordenConDefaults = {
+    ...orden,
+    alimentos_servidos: false,
+    bebidas_servidos: false,
+    detalles_orden: orden.detalles_orden.map(d => ({
+      ...d,
+      ronda: d.ronda ?? 1,
+      servido: d.servido ?? false,
+    })),
+  };
+
+  return <ActiveOrderView mesa={mesa} orden={ordenConDefaults} />;
 }

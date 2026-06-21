@@ -36,12 +36,12 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
       <div
-        className="bg-card rounded-2xl border border-border/60 w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95"
+        className="bg-card rounded-2xl border-2 border-border/60 w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95"
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
           <div className="flex items-center justify-between px-6 pt-6 pb-0">
-            <h2 className="text-lg font-semibold text-white">{title}</h2>
+            <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
             <button
               onClick={onClose}
               className="text-muted hover:text-body transition-colors p-1 rounded-lg hover:bg-bg-base"

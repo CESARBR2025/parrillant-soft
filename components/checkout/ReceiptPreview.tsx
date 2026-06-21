@@ -110,16 +110,16 @@ export function ReceiptPreview({
     <div className="space-y-6">
       <div className="text-center">
         <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-2" />
-        <h2 className="text-lg font-bold text-white">Pago registrado</h2>
+        <h2 className="text-lg font-bold text-text-primary">Pago registrado</h2>
         <p className="text-sm text-muted mt-1">
           Mesa {numeroMesa}{zona ? ` - ${zona}` : ''}
         </p>
       </div>
 
       {/* Ticket */}
-      <div className="bg-bg-base rounded-xl border border-border/60 p-5 space-y-3">
+      <div className="bg-bg-base rounded-xl border-2 border-border/60 p-5 space-y-3">
         <div className="text-center pb-3 border-b border-border/60">
-          <p className="text-xs font-bold text-white tracking-widest uppercase">
+          <p className="text-xs font-bold text-text-primary tracking-widest uppercase">
             Parrillant
           </p>
           <p className="text-xs text-muted mt-0.5">Ticket de cierre</p>
@@ -131,7 +131,7 @@ export function ReceiptPreview({
               <span className="text-body">
                 {item.cantidad}x {item.nombre}
               </span>
-              <span className="text-white font-medium">
+              <span className="text-text-primary font-medium">
                 ${(item.cantidad * item.precio_unitario).toFixed(2)}
               </span>
             </li>
@@ -141,7 +141,7 @@ export function ReceiptPreview({
         <div className="border-t border-border/60 pt-3 space-y-1">
           <div className="flex justify-between text-sm">
             <span className="text-muted">Total</span>
-            <span className="text-white font-bold">${total.toFixed(2)}</span>
+            <span className="text-text-primary font-bold">${total.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted">Método de pago</span>
@@ -157,7 +157,7 @@ export function ReceiptPreview({
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted">Cambio</span>
-                <span className="text-green-400">${cambio.toFixed(2)}</span>
+                <span className="text-success">${cambio.toFixed(2)}</span>
               </div>
             </>
           )}
@@ -174,7 +174,7 @@ export function ReceiptPreview({
         </button>
         <button
           onClick={onClose}
-          className="flex-1 bg-accent text-white rounded-xl px-4 py-3 text-sm font-bold hover:bg-accent-hover transition-colors"
+          className="flex-1 bg-accent text-white rounded-xl px-4 py-3 text-sm font-bold hover:bg-accent-dark transition-colors"
         >
           Volver a Caja
         </button>

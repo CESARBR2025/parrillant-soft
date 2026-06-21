@@ -26,7 +26,6 @@ export async function agregarItemsOrden(
     return { error: 'Debes agregar al menos un ítem' };
   }
 
-  // Verificar que la orden existe y está pendiente
   const { data: orden } = await supabase
     .from('ordenes')
     .select('id, estado, mesero_id')
@@ -37,7 +36,7 @@ export async function agregarItemsOrden(
     return { error: 'Orden no encontrada' };
   }
 
-  if (orden.estado === 'listo') {
+  if (orden.estado === 'listo' || orden.estado === 'entregado') {
     const { error: updateError } = await supabase
       .from('ordenes')
       .update({ estado: 'en_preparacion', updated_at: new Date().toISOString() })
@@ -50,6 +49,17 @@ export async function agregarItemsOrden(
     return { error: 'Solo puedes agregar ítems a órdenes pendientes o en preparación' };
   }
 
+  // Get the next ronda number
+  const { data: maxRonda } = await supabase
+    .from('detalles_orden')
+    .select('ronda')
+    .eq('orden_id', orden_id)
+    .order('ronda', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const nextRonda = (maxRonda?.ronda ?? 0) + 1;
+
   const detalles = items.map(item => ({
     orden_id,
     producto_id: item.producto_id,
@@ -57,6 +67,8 @@ export async function agregarItemsOrden(
     notas: item.notas ?? null,
     tipo: item.tipo,
     precio_unitario: item.precio_unitario,
+    ronda: nextRonda,
+    servido: false,
   }));
 
   const { error } = await supabase
@@ -65,6 +77,23 @@ export async function agregarItemsOrden(
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Reset serve flags for tipos being added
+  const tipos = new Set(items.map(i => i.tipo));
+  if (tipos.has('alimento')) {
+    await supabase.from('ordenes').update({ alimentos_servidos: false }).eq('id', orden_id);
+  }
+  if (tipos.has('bebida')) {
+    await supabase.from('ordenes').update({ bebidas_servidos: false }).eq('id', orden_id);
+  }
+
+  // Si la orden estaba en pendiente (ABIERTA), transicionar a en_preparacion
+  if (orden.estado === 'pendiente') {
+    await supabase
+      .from('ordenes')
+      .update({ estado: 'en_preparacion' })
+      .eq('id', orden_id);
   }
 
   revalidatePath('/mesero');

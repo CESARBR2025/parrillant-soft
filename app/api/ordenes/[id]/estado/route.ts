@@ -5,7 +5,7 @@ import { Database } from "@/types/database.types";
 
 // Transiciones de estado permitidas por rol
 const TRANSICIONES_VALIDAS: Record<string, string[]> = {
-  mesero: ["en_preparacion", "entregado", "cancelado"],
+  mesero: ["en_preparacion", "entregado", "cuenta_solicitada", "cancelado"],
   cocina: ["en_preparacion", "listo"],
   barra: ["en_preparacion", "listo"],
   caja: ["cerrado", "cancelado"],
@@ -14,6 +14,7 @@ const TRANSICIONES_VALIDAS: Record<string, string[]> = {
     "en_preparacion",
     "listo",
     "entregado",
+    "cuenta_solicitada",
     "cerrado",
     "cancelado",
   ],
@@ -22,6 +23,7 @@ const TRANSICIONES_VALIDAS: Record<string, string[]> = {
     "en_preparacion",
     "listo",
     "entregado",
+    "cuenta_solicitada",
     "cerrado",
     "cancelado",
   ],

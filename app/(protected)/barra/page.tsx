@@ -12,7 +12,7 @@ export default function BarraPage() {
       <div className="flex items-center gap-3">
         <Wine className="w-7 h-7 text-accent" />
         <div>
-          <h1 className="text-2xl font-bold text-white">Barra</h1>
+          <h1 className="text-2xl font-bold text-text-primary">Barra</h1>
           <p className="text-sm text-muted">
             {queueOrders.length} orden{queueOrders.length !== 1 ? 'es' : ''} pendiente{queueOrders.length !== 1 ? 's' : ''}
           </p>

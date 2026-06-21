@@ -50,7 +50,7 @@ export default function LoginPage() {
     }
 
     return (
-        <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-bg-base to-bg-gradient">
+        <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-accent-light via-bg-app to-bg-app">
             <div className="w-full max-w-sm">
                 <div className="text-center mb-10">
                     <Image
@@ -60,27 +60,27 @@ export default function LoginPage() {
                         height={160}
                         priority
                         unoptimized
-                        className="mx-auto mb-6 drop-shadow-[0_0_30px_rgba(232,82,10,0.15)]"
+                        className="mx-auto mb-6 drop-shadow-[0_0_30px_rgba(249,115,22,0.15)]"
                     />
                     <h1 className="text-3xl font-bold tracking-tight">
-                        <span className="text-white">Parrilla </span>
+                        <span className="text-text-primary">Parrilla </span>
                         <span className="bg-gradient-to-r from-accent to-amber-400 bg-clip-text text-transparent">
                             Norteña Soft
                         </span>
                     </h1>
-                    <p className="text-sm text-body/70 mt-2">
+                    <p className="text-sm text-text-muted mt-2">
                         Software de control y gestión del restaurante
                     </p>
                 </div>
 
-                <div className="bg-card rounded-2xl border border-border/60 p-8">
+                <div className="bg-bg-card rounded-2xl border-2 border-border-default p-8 shadow-card">
                     <form onSubmit={handleLogin} className="space-y-5">
                         <div className="space-y-1.5">
-                            <label htmlFor="email" className="block text-sm font-medium text-muted">
+                            <label htmlFor="email" className="block text-sm font-medium text-text-secondary">
                                 Correo electrónico
                             </label>
                             <div className="relative">
-                                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted/60 pointer-events-none" />
+                                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
                                 <input
                                     id="email"
                                     type="email"
@@ -88,18 +88,18 @@ export default function LoginPage() {
                                     autoComplete="email"
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
-                                    className="w-full rounded-xl border border-border/40 pl-10 pr-4 py-3 text-sm text-white placeholder:text-muted/40 bg-bg-base focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 transition-all duration-150"
+                                    className="w-full rounded-xl border border-border-default/60 pl-10 pr-4 py-3 text-sm text-text-primary placeholder:text-text-muted/60 bg-bg-input focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all duration-150"
                                     placeholder="usuario@parrilla.com"
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-1.5">
-                            <label htmlFor="password" className="block text-sm font-medium text-muted">
+                            <label htmlFor="password" className="block text-sm font-medium text-text-secondary">
                                 Contraseña
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted/60 pointer-events-none" />
+                                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
                                 <input
                                     id="password"
                                     type="password"
@@ -107,20 +107,14 @@ export default function LoginPage() {
                                     autoComplete="current-password"
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
-                                    className="w-full rounded-xl border border-border/40 pl-10 pr-4 py-3 text-sm text-white placeholder:text-muted/40 bg-bg-base focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 transition-all duration-150"
+                                    className="w-full rounded-xl border border-border-default/60 pl-10 pr-4 py-3 text-sm text-text-primary placeholder:text-text-muted/60 bg-bg-input focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all duration-150"
                                     placeholder="••••••••"
                                 />
                             </div>
                         </div>
 
                         {error && (
-                            <div className="flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm font-medium"
-                                style={{
-                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                    color: '#ef4444',
-                                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                                }}
-                            >
+                            <div className="flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm font-medium bg-danger/10 text-danger border border-danger/20">
                                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                                 <span>{error}</span>
                             </div>
@@ -129,7 +123,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-accent text-white hover:bg-accent-hover rounded-xl px-4 py-3 font-semibold transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-accent/20"
+                            className="w-full bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-3 font-semibold transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-accent"
                         >
                             {loading ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -141,7 +135,7 @@ export default function LoginPage() {
                     </form>
                 </div>
 
-                <p className="text-center text-xs text-muted/50 mt-6">
+                <p className="text-center text-xs text-text-muted/50 mt-6">
                     &copy; {new Date().getFullYear()} Parrilla Norteña Soft
                 </p>
             </div>
