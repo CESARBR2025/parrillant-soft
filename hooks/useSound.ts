@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 
-export function useSound() {
+export function useSound(soundFile: string = '/sounds/didi_pedido.mp3') {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const audio = new Audio('/sounds/didi_pedido.mp3');
+    const audio = new Audio(soundFile);
     audio.preload = 'auto';
     audioRef.current = audio;
 
@@ -28,7 +28,7 @@ export function useSound() {
       audio.src = '';
       audioRef.current = null;
     };
-  }, []);
+  }, [soundFile]);
 
   const play = useCallback(() => {
     const audio = audioRef.current;

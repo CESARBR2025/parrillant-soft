@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
+import { useSound } from '@/hooks/useSound';
 import { TableCard } from './TableCard';
 import { Search, MapPin, UtensilsCrossed, X } from 'lucide-react';
 import { abrirMesa } from '@/app/actions/abrirMesa';
@@ -49,7 +50,9 @@ interface StatDef {
 
 export function TableMap({ initialMesas }: TableMapProps) {
   const router = useRouter();
+  const { play } = useSound('/sounds/iosbells.mp3');
   const [mesas, setMesas] = useState<MesaConOrden[]>(initialMesas);
+  const notifiedRef = useRef<Set<number>>(new Set());
   const [, setNow] = useState(() => Date.now());
   const [searchQuery, setSearchQuery] = useState('');
   const [filterEstado, setFilterEstado] = useState<FilterEstado>(null);
@@ -164,6 +167,16 @@ export function TableMap({ initialMesas }: TableMapProps) {
         table: 'ordenes',
       }, (payload) => {
         const orden = payload.new as { mesa_id: number; id: number; estado: string; comensales: number | null };
+
+        if (orden.estado === 'listo') {
+          if (!notifiedRef.current.has(orden.id)) {
+            notifiedRef.current.add(orden.id);
+            play();
+          }
+        } else {
+          notifiedRef.current.delete(orden.id);
+        }
+
         if (orden.estado === 'cerrado') {
           setMesas(prev => prev.map(m =>
             m.id === orden.mesa_id
@@ -180,13 +193,33 @@ export function TableMap({ initialMesas }: TableMapProps) {
       })
       .subscribe();
 
+    const pollListo = async () => {
+      const { data } = await supabase
+        .from('ordenes')
+        .select('id')
+        .eq('estado', 'listo');
+
+      if (!data) return;
+
+      data.forEach((o) => {
+        if (!notifiedRef.current.has(o.id)) {
+          notifiedRef.current.add(o.id);
+          play();
+        }
+      });
+    };
+
     const interval = setInterval(() => setNow(Date.now()), 30000);
+    const pollInterval = setInterval(pollListo, 5000);
+
+    pollListo();
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
+      clearInterval(pollInterval);
     };
-  }, []);
+  }, [play]);
 
   const mesasFiltradas = useMemo(() => {
     let result = mesas;
