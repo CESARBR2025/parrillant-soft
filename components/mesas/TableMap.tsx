@@ -34,7 +34,7 @@ function formatTiempo(createdAt: string | null | undefined): string | null {
   return rest > 0 ? `${hrs}h ${rest}m` : `${hrs}h`;
 }
 
-type FilterEstado = 'disponible' | 'ocupada' | 'reservada' | null;
+type FilterEstado = 'disponible' | 'ocupada' | null;
 
 interface StatDef {
   key: FilterEstado;
@@ -107,7 +107,7 @@ export function TableMap({ initialMesas }: TableMapProps) {
       setComensalesInput(2);
       setShowAbrirModal(true);
     } else if (mesa.orden_estado === 'pendiente') {
-      router.push(`/mesero/mesas/${mesa.id}/nueva`);
+      router.push(`/mesero/mesas/${mesa.id}/nueva?ordenId=${mesa.orden_activa_id}`);
     } else if (mesa.orden_activa_id) {
       router.push(`/mesero/mesas/${mesa.id}`);
     }
