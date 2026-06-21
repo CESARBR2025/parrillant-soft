@@ -2,10 +2,12 @@
 
 import { Wine } from 'lucide-react';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
+import { useSound } from '@/hooks/useSound';
 import { StationQueue } from '@/components/kitchen/StationQueue';
 
 export default function BarraPage() {
-  const { queueOrders, loading, refetch } = useKitchenOrders('bebida');
+  const { play } = useSound();
+  const { queueOrders, loading, refetch } = useKitchenOrders('bebida', play);
 
   return (
     <div className="space-y-6">

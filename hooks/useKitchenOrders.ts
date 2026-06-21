@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/database.types';
 
+type OnNewOrderCallback = () => void;
+
 type OrdenRow = Database['public']['Tables']['ordenes']['Row'];
 type DetalleRow = Database['public']['Tables']['detalles_orden']['Row'];
 
@@ -46,11 +48,15 @@ interface OrdenWithRelations extends OrdenRow {
   })[];
 }
 
-export function useKitchenOrders(tipo: 'alimento' | 'bebida') {
+export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNewOrderCallback) {
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState<number>(() => Date.now());
   const channelRef = useRef<ReturnType<ReturnType<typeof createClientSupabaseClient>['channel']> | null>(null);
+  const prevOrderIdsRef = useRef<Set<number>>(new Set());
+  const isFirstLoadRef = useRef(true);
+  const onNewOrderRef = useRef<OnNewOrderCallback | undefined>(onNewOrder);
+  useEffect(() => { onNewOrderRef.current = onNewOrder; }, [onNewOrder]);
 
   const fetchOrders = useCallback(async () => {
     const supabase = createClientSupabaseClient();
@@ -112,6 +118,15 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida') {
       })
       .filter((o) => o.items.length > 0);
 
+    if (!isFirstLoadRef.current && onNewOrderRef.current) {
+      const hasNew = transformed.some((o) => !prevOrderIdsRef.current.has(o.id));
+      if (hasNew) {
+        onNewOrderRef.current();
+      }
+    }
+    prevOrderIdsRef.current = new Set(transformed.map((o) => o.id));
+    isFirstLoadRef.current = false;
+
     setOrders(transformed);
     setLoading(false);
   }, [tipo]);
@@ -124,6 +139,7 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida') {
       if (!mounted) return;
 
       const supabase = createClientSupabaseClient();
+
       const channelName = `kitchen-${tipo}-${Math.random().toString(36).slice(2, 9)}`;
 
       const channel = supabase
@@ -143,28 +159,50 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida') {
           schema: 'public',
           table: 'detalles_orden',
         }, () => { if (mounted) fetchOrders(); })
-        .subscribe();
+        .subscribe((status) => {
+          if (status !== 'SUBSCRIBED' && status !== 'CHANNEL_ERROR') {
+            console.warn(`[kitchen ${tipo}] Realtime status:`, status);
+          }
+        });
 
       channelRef.current = channel;
 
-      const interval = setInterval(() => {
+      const timerInterval = setInterval(() => {
         if (mounted) setNow(Date.now());
       }, 1000);
 
-      return { channel, supabase, interval };
+      const pollInterval = setInterval(() => {
+        if (mounted) fetchOrders();
+      }, 5000);
+
+      return { channel, supabase, timerInterval, pollInterval };
     }
 
-    const cleanup = { channel: null as ReturnType<ReturnType<typeof createClientSupabaseClient>['channel']> | null, supabase: null as ReturnType<typeof createClientSupabaseClient> | null, interval: null as ReturnType<typeof setInterval> | null };
+    const cleanup = {
+      channel: null as ReturnType<ReturnType<typeof createClientSupabaseClient>['channel']> | null,
+      supabase: null as ReturnType<typeof createClientSupabaseClient> | null,
+      timerInterval: null as ReturnType<typeof setInterval> | null,
+      pollInterval: null as ReturnType<typeof setInterval> | null,
+    };
 
-    init().then((c) => { if (c) { cleanup.channel = c.channel; cleanup.supabase = c.supabase; cleanup.interval = c.interval; } });
+    init().then((c) => {
+      if (!c || !mounted) return;
+      cleanup.channel = c.channel;
+      cleanup.supabase = c.supabase;
+      cleanup.timerInterval = c.timerInterval;
+      cleanup.pollInterval = c.pollInterval;
+    });
 
     return () => {
       mounted = false;
       if (cleanup.supabase && cleanup.channel) {
         cleanup.supabase.removeChannel(cleanup.channel);
       }
-      if (cleanup.interval) {
-        clearInterval(cleanup.interval);
+      if (cleanup.timerInterval) {
+        clearInterval(cleanup.timerInterval);
+      }
+      if (cleanup.pollInterval) {
+        clearInterval(cleanup.pollInterval);
       }
     };
   }, [fetchOrders, tipo]);
