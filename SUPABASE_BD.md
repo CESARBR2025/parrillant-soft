@@ -12,10 +12,11 @@ CREATE TYPE public.rol_usuario AS ENUM (
 );
 
 CREATE TYPE public.estado_orden AS ENUM (
-'pendiente', -- Mesero tomó la orden, aún no enviada a cocina/barra
-'en_preparacion', -- Cocina/barra confirmó recepción
-'listo', -- Cocina/barra terminó, esperando entrega
-'entregado', -- Mesero entregó al cliente
+'pendiente', -- Mesa abierta, mesero asignó comensales, aún no se toma orden
+'en_preparacion', -- Comanda enviada a cocina/barra
+'listo', -- Cocina/barra terminó, mesero debe recoger y llevar
+'entregado', -- Mesero sirvió al cliente, comensales consumiendo
+'cuenta_solicitada', -- Cliente pidió la cuenta, esperando cobro de caja
 'cerrado', -- Caja cobró y liberó la mesa
 'cancelado' -- Cancelado en cualquier punto
 );
@@ -98,17 +99,20 @@ updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 -- ============================================================
 
 CREATE TABLE public.ordenes (
-id BIGSERIAL PRIMARY KEY,
-mesa_id INTEGER NOT NULL REFERENCES public.mesas(id),
-mesero_id UUID NOT NULL REFERENCES public.perfiles(id),
-estado public.estado_orden NOT NULL DEFAULT 'pendiente',
-notas TEXT, -- Notas generales de la orden
-total NUMERIC(10, 2), -- Se calcula al cerrar
-pagado_con NUMERIC(10, 2), -- Monto recibido (para dar cambio)
-metodo_pago TEXT, -- 'efectivo', 'tarjeta', 'transferencia'
-cerrado_por_id UUID REFERENCES public.perfiles(id), -- Caja que cerró
-created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id BIGSERIAL PRIMARY KEY,
+    mesa_id INTEGER NOT NULL REFERENCES public.mesas(id) ON DELETE RESTRICT,
+    mesero_id UUID NOT NULL REFERENCES public.perfiles(id),
+    comensales INTEGER,
+    estado public.estado_orden NOT NULL DEFAULT 'pendiente',
+    notas TEXT,
+    total NUMERIC(10,2),
+    alimentos_servidos BOOLEAN NOT NULL DEFAULT FALSE,   -- Track food serve validation
+    bebidas_servidos BOOLEAN NOT NULL DEFAULT FALSE,     -- Track drink serve validation
+    metodo_pago public.tipo_pago,
+    pagado_con NUMERIC(10,2),
+    cerrado_por_id UUID REFERENCES public.perfiles(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_ordenes_mesa_id ON public.ordenes(mesa_id);
@@ -120,15 +124,17 @@ CREATE INDEX idx_ordenes_estado ON public.ordenes(estado);
 -- ============================================================
 
 CREATE TABLE public.detalles_orden (
-id BIGSERIAL PRIMARY KEY,
-orden_id BIGINT NOT NULL REFERENCES public.ordenes(id) ON DELETE CASCADE,
-producto_id INTEGER NOT NULL REFERENCES public.productos_menu(id),
-cantidad SMALLINT NOT NULL DEFAULT 1 CHECK (cantidad > 0),
-precio_unitario NUMERIC(10, 2) NOT NULL, -- Snapshot del precio al momento de ordenar
-notas TEXT, -- Modificaciones: "sin cebolla", "extra queso"
-tipo public.tipo_producto NOT NULL, -- Snapshot del tipo para filtrar por estación
-listo BOOLEAN NOT NULL DEFAULT FALSE, -- Marca individual por ítem
-created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id BIGSERIAL PRIMARY KEY,
+    orden_id BIGINT NOT NULL REFERENCES public.ordenes(id) ON DELETE CASCADE,
+    producto_id INTEGER NOT NULL REFERENCES public.productos_menu(id),
+    cantidad SMALLINT NOT NULL DEFAULT 1 CHECK (cantidad > 0),
+    precio_unitario NUMERIC(10, 2) NOT NULL,
+    notas TEXT,
+    tipo public.tipo_producto NOT NULL,
+    ronda INTEGER NOT NULL DEFAULT 1,         -- Round number (1 = initial, increments on each add)
+    listo BOOLEAN NOT NULL DEFAULT FALSE,
+    servido BOOLEAN NOT NULL DEFAULT FALSE,    -- Waiter has served this item to table
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_detalles_orden_id ON public.detalles_orden(orden_id);
@@ -346,14 +352,17 @@ CREATE POLICY "ordenes_insert_mesero"
     AND mesero_id = auth.uid()
   );
 
--- Mesero: puede actualizar sus órdenes solo en estado pendiente
+-- Mesero: puede actualizar sus órdenes en estados activos (no cerradas)
 CREATE POLICY "ordenes_update_mesero"
   ON public.ordenes FOR UPDATE
   TO authenticated
   USING (
     public.get_my_rol() = 'mesero'
     AND mesero_id = auth.uid()
-    AND estado = 'pendiente'
+    AND estado IN ('pendiente', 'listo', 'entregado')
+  )
+  WITH CHECK (
+    estado IN ('en_preparacion', 'entregado', 'cuenta_solicitada', 'cancelado')
   );
 
 -- Cocina: puede cambiar estado a en_preparacion y listo (solo sus ítems de alimento)

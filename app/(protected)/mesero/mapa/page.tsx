@@ -16,11 +16,16 @@ export default async function MapaPage() {
 
   const { data: ordenesActivas } = await supabase
     .from('ordenes')
-    .select('id, mesa_id, created_at')
-    .in('estado', ['pendiente', 'en_preparacion', 'listo', 'entregado']);
+    .select('id, mesa_id, created_at, estado, comensales')
+    .in('estado', ['pendiente', 'en_preparacion', 'listo', 'entregado', 'cuenta_solicitada']);
 
   const ordenesPorMesa = new Map(
-    ordenesActivas?.map(o => [o.mesa_id, { id: o.id, created_at: o.created_at }]) ?? []
+    ordenesActivas?.map(o => [o.mesa_id, {
+      id: o.id,
+      created_at: o.created_at,
+      orden_estado: o.estado,
+      comensales: o.comensales,
+    }]) ?? []
   );
 
   const mesasConOrdenes = (mesas ?? []).map(m => {
@@ -30,6 +35,8 @@ export default async function MapaPage() {
       estado: orden ? 'ocupada' as const : m.estado,
       orden_activa_id: orden?.id ?? null,
       orden_created_at: orden?.created_at ?? null,
+      orden_estado: orden?.orden_estado ?? null,
+      comensales: orden?.comensales ?? null,
     };
   });
 

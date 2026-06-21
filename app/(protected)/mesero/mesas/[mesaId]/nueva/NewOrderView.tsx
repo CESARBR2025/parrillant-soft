@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import Image from 'next/image';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Plus, Minus, ShoppingCart, X, ChevronRight, UtensilsCrossed, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -65,17 +65,18 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
     p => p.categoria_id === selectedCategoriaId,
   );
 
-  const searchResults = searchQuery.trim()
+  const searchResults = useMemo(() => searchQuery.trim()
     ? productos.filter(p =>
         p.nombre.toLowerCase().includes(searchQuery.toLowerCase()),
       )
-    : [];
+    : [],
+  [searchQuery, productos]);
 
-  const totalItems = [...cart.values()].reduce((sum, item) => sum + item.cantidad, 0);
-  const totalEstimado = [...cart.values()].reduce(
+  const totalItems = useMemo(() => [...cart.values()].reduce((sum, item) => sum + item.cantidad, 0), [cart]);
+  const totalEstimado = useMemo(() => [...cart.values()].reduce(
     (sum, item) => sum + item.producto.precio * item.cantidad,
     0,
-  );
+  ), [cart]);
 
   const addToCart = useCallback((producto: Producto) => {
     setCart(prev => {
@@ -153,7 +154,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
         toast.error(result.error);
       } else {
         toast.success('Orden enviada a cocina/barra');
-        router.replace(`/mesero/mesas/${mesa.id}`);
+        router.replace('/mesero/mapa');
       }
     }
   }, [cart, notaGeneral, mesa.id, ordenExistente, router]);
@@ -247,14 +248,14 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
           <div>
             <button
               onClick={() => {
-                const destino = ordenExistente
+                const destino = ordenExistente && ordenExistente.estado !== 'pendiente'
                   ? `/mesero/mesas/${mesa.id}`
                   : '/mesero/mapa';
                 window.location.href = destino;
               }}
               className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1"
             >
-              ← {ordenExistente ? 'Volver a la orden' : 'Mapa de Mesas'}
+              ← {ordenExistente && ordenExistente.estado !== 'pendiente' ? 'Volver a la orden' : 'Mapa de Mesas'}
             </button>
             <h1 className="text-lg md:text-xl font-bold text-text-primary">
               Mesa {mesa.numero}

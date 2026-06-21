@@ -39,7 +39,7 @@ export default function CajaPage() {
           mesas (numero, zona),
           detalles_orden (cantidad, precio_unitario, listo, productos_menu (nombre))`,
           )
-          .in('estado', ['entregado'])
+          .in('estado', ['entregado', 'cuenta_solicitada'])
           .order('created_at', { ascending: true }),
         supabase
           .from('ordenes')

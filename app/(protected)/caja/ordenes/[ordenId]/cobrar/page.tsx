@@ -58,7 +58,7 @@ export default function CobrarPage() {
           router.push('/caja')
           return
         }
-        if (data.estado !== 'entregado') {
+        if (data.estado !== 'entregado' && data.estado !== 'cuenta_solicitada') {
           router.push('/caja')
           return
         }

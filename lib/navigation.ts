@@ -19,6 +19,7 @@ export interface NavItem {
 export const NAV_ITEMS: Record<Rol, NavItem[]> = {
   super_admin: [
     { label: 'Panel', href: '/admin', icon: LayoutDashboard },
+    { label: 'Mapa', href: '/mesero/mapa', icon: Grid3x3 },
     { label: 'Cocina', href: '/cocina', icon: CookingPot },
     { label: 'Barra', href: '/barra', icon: Wine },
     { label: 'Caja', href: '/caja', icon: CreditCard },
@@ -26,6 +27,7 @@ export const NAV_ITEMS: Record<Rol, NavItem[]> = {
   ],
   admin: [
     { label: 'Panel', href: '/admin', icon: LayoutDashboard },
+    { label: 'Mapa', href: '/mesero/mapa', icon: Grid3x3 },
     { label: 'Cocina', href: '/cocina', icon: CookingPot },
     { label: 'Barra', href: '/barra', icon: Wine },
     { label: 'Caja', href: '/caja', icon: CreditCard },

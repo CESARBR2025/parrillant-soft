@@ -46,8 +46,8 @@ CREATE POLICY "detalles_insert_mesero"
     )
   );
 
--- 5. ordenes_update_mesero: permitir actualizar también en 'en_preparacion' y 'listo'
---    (para que el mesero pueda agregar ítems a órdenes listas y reactivarlas)
+-- 5. ordenes_update_mesero: permitir actualizar pendiente/en_preparacion/listo/entregado
+--    WITH CHECK permite transicionar a entregado/cuenta_solicitada
 DROP POLICY IF EXISTS "ordenes_update_mesero" ON public.ordenes;
 
 CREATE POLICY "ordenes_update_mesero"
@@ -55,7 +55,10 @@ CREATE POLICY "ordenes_update_mesero"
   TO authenticated
   USING (
     public.get_my_rol() = 'mesero'
-    AND estado IN ('pendiente', 'en_preparacion', 'listo')
+    AND estado IN ('pendiente', 'en_preparacion', 'listo', 'entregado')
+  )
+  WITH CHECK (
+    estado IN ('pendiente', 'en_preparacion', 'listo', 'entregado', 'cuenta_solicitada')
   );
 
 -- 6. ordenes_update_cocina/barra: asegurar que no tengan conflicto
@@ -81,7 +84,29 @@ CREATE POLICY "ordenes_update_barra"
   )
   WITH CHECK (estado IN ('en_preparacion', 'listo'));
 
--- 7. Política para que mesero pueda ver órdenes activas de la mesa
+-- 7. Permitir que mesero marque detalles_orden como servido
+DROP POLICY IF EXISTS "detalles_update_mesero" ON public.detalles_orden;
+
+CREATE POLICY "detalles_update_mesero"
+  ON public.detalles_orden FOR UPDATE
+  TO authenticated
+  USING (
+    public.get_my_rol() IN ('mesero', 'admin', 'super_admin')
+    AND EXISTS (
+      SELECT 1 FROM public.ordenes o
+      WHERE o.id = detalles_orden.orden_id
+        AND o.estado IN ('listo', 'entregado', 'cuenta_solicitada', 'cerrado')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.ordenes o
+      WHERE o.id = detalles_orden.orden_id
+        AND o.estado IN ('listo', 'entregado', 'cuenta_solicitada', 'cerrado')
+    )
+  );
+
+-- 8. Política para que mesero pueda ver órdenes activas de la mesa
 --    (ya existe: ordenes_select_mesero con mesero_id = auth.uid())
 --    Pero también necesita ver la orden activa al hacer clic en la mesa
 --    La política actual usa mesero_id = auth.uid(), eso está bien

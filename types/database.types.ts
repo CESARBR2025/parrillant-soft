@@ -51,6 +51,8 @@ export type Database = {
           orden_id: number;
           precio_unitario: number;
           producto_id: number;
+          ronda: number;
+          servido: boolean;
           tipo: Database["public"]["Enums"]["tipo_producto"];
         };
         Insert: {
@@ -62,6 +64,8 @@ export type Database = {
           orden_id: number;
           precio_unitario: number;
           producto_id: number;
+          ronda?: number;
+          servido?: boolean;
           tipo: Database["public"]["Enums"]["tipo_producto"];
         };
         Update: {
@@ -73,6 +77,8 @@ export type Database = {
           orden_id?: number;
           precio_unitario?: number;
           producto_id?: number;
+          ronda?: number;
+          servido?: boolean;
           tipo?: Database["public"]["Enums"]["tipo_producto"];
         };
         Relationships: [
@@ -124,7 +130,10 @@ export type Database = {
       };
       ordenes: {
         Row: {
+          alimentos_servidos: boolean;
+          bebidas_servidos: boolean;
           cerrado_por_id: string | null;
+          comensales: number | null;
           created_at: string;
           estado: Database["public"]["Enums"]["estado_orden"];
           id: number;
@@ -137,7 +146,10 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          alimentos_servidos?: boolean;
+          bebidas_servidos?: boolean;
           cerrado_por_id?: string | null;
+          comensales?: number | null;
           created_at?: string;
           estado?: Database["public"]["Enums"]["estado_orden"];
           id?: number;
@@ -150,7 +162,10 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          alimentos_servidos?: boolean;
+          bebidas_servidos?: boolean;
           cerrado_por_id?: string | null;
+          comensales?: number | null;
           created_at?: string;
           estado?: Database["public"]["Enums"]["estado_orden"];
           id?: number;
@@ -280,6 +295,7 @@ export type Database = {
         | "en_preparacion"
         | "listo"
         | "entregado"
+        | "cuenta_solicitada"
         | "cerrado"
         | "cancelado";
       rol_usuario:
@@ -426,6 +442,7 @@ export const Constants = {
         "en_preparacion",
         "listo",
         "entregado",
+        "cuenta_solicitada",
         "cerrado",
         "cancelado",
       ],
