@@ -2,10 +2,12 @@
 
 import { CookingPot } from 'lucide-react';
 import { useKitchenOrders } from '@/hooks/useKitchenOrders';
+import { useSound } from '@/hooks/useSound';
 import { StationQueue } from '@/components/kitchen/StationQueue';
 
 export default function CocinaPage() {
-  const { queueOrders, loading, refetch } = useKitchenOrders('alimento');
+  const { play } = useSound();
+  const { queueOrders, loading, refetch } = useKitchenOrders('alimento', play);
 
   return (
     <div className="space-y-6">
