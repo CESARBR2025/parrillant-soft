@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { SessionProvider } from '@/components/providers/SessionProvider';
 import { HeaderActionsProvider } from '@/components/providers/HeaderActionsProvider';
 import { AppShell } from '@/components/layout/AppShell';
+import { WaiterNotification } from '@/components/WaiterNotification';
 import type { Perfil } from '@/types/roles';
 
 export default async function ProtectedLayout({
@@ -31,6 +32,7 @@ export default async function ProtectedLayout({
   return (
       <SessionProvider initialUser={user} initialPerfil={perfil as unknown as Perfil}>
         <HeaderActionsProvider>
+          <WaiterNotification />
           <AppShell>{children}</AppShell>
         </HeaderActionsProvider>
       </SessionProvider>
