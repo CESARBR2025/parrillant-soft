@@ -56,6 +56,7 @@ export function StationQueue({ queue, loading, tipo, onRefetch }: StationQueuePr
           order={order}
           onMarkReady={handleMarkReady}
           isPending={isPending}
+          esSubOrden={order.esSubOrden}
         />
       ))}
     </div>

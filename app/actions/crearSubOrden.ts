@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 
-interface ItemCrear {
+interface ItemSub {
   producto_id: number;
   cantidad: number;
   notas?: string;
@@ -11,11 +11,9 @@ interface ItemCrear {
   precio_unitario: number;
 }
 
-export async function crearOrden(
-  mesa_id: number,
-  notas: string | null,
-  items: ItemCrear[],
-  comensales?: number,
+export async function crearSubOrden(
+  orden_padre_id: number,
+  items: ItemSub[],
 ) {
   const supabase = await createServerSupabaseClient();
 
@@ -28,24 +26,35 @@ export async function crearOrden(
     return { error: 'La orden debe tener al menos un ítem' };
   }
 
-  // Crear la orden
+  const { data: padre } = await supabase
+    .from('ordenes')
+    .select('id, mesa_id, estado')
+    .eq('id', orden_padre_id)
+    .single();
+
+  if (!padre) {
+    return { error: 'Orden principal no encontrada' };
+  }
+
+  if (padre.estado === 'cerrado' || padre.estado === 'cancelado') {
+    return { error: 'La orden principal ya está cerrada' };
+  }
+
   const { data: orden, error: ordenError } = await supabase
     .from('ordenes')
     .insert({
-      mesa_id,
+      mesa_id: padre.mesa_id,
       mesero_id: user.id,
-      notas,
       estado: 'en_preparacion',
-      comensales: comensales ?? null,
+      orden_padre_id,
     })
     .select()
     .single();
 
   if (ordenError || !orden) {
-    return { error: ordenError?.message ?? 'Error al crear la orden' };
+    return { error: ordenError?.message ?? 'Error al crear la sub-orden' };
   }
 
-  // Crear los detalles
   const detalles = items.map(item => ({
     orden_id: orden.id,
     producto_id: item.producto_id,
@@ -60,16 +69,9 @@ export async function crearOrden(
     .insert(detalles);
 
   if (detallesError) {
-    // Limpiar orden si fallan los detalles
     await supabase.from('ordenes').delete().eq('id', orden.id);
     return { error: detallesError.message };
   }
-
-  // Ocupar la mesa
-  await supabase
-    .from('mesas')
-    .update({ estado: 'ocupada' })
-    .eq('id', mesa_id);
 
   revalidatePath('/mesero');
 

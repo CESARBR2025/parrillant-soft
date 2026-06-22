@@ -123,7 +123,7 @@ export function TableMap({ initialMesas }: TableMapProps) {
     if (result.error) {
       alert(result.error);
     } else {
-      router.push(`/mesero/mesas/${abrirMesaData.id}/nueva?ordenId=${result.ordenId}`);
+      router.push(`/mesero/mesas/${abrirMesaData.id}/nueva?comensales=${comensalesInput}`);
     }
   }, [abrirMesaData, comensalesInput, router]);
 

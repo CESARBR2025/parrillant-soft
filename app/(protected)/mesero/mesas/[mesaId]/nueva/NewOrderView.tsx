@@ -8,7 +8,7 @@ import { Plus, Minus, ShoppingCart, X, ChevronRight, UtensilsCrossed, Search } f
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { crearOrden } from '@/app/actions/crearOrden';
-import { agregarItemsOrden } from '@/app/actions/agregarItemsOrden';
+import { crearSubOrden } from '@/app/actions/crearSubOrden';
 import { useHeaderActions } from '@/components/providers/HeaderActionsProvider';
 import type { Tables } from '@/types/database.types';
 
@@ -20,6 +20,7 @@ interface NewOrderViewProps {
   categorias: Categoria[];
   productos: Producto[];
   ordenExistente: { id: number; estado: string } | null;
+  comensales?: number;
 }
 
 interface CartItem {
@@ -28,7 +29,7 @@ interface CartItem {
   notas: string;
 }
 
-export function NewOrderView({ mesa, categorias, productos, ordenExistente }: NewOrderViewProps) {
+export function NewOrderView({ mesa, categorias, productos, ordenExistente, comensales }: NewOrderViewProps) {
   const router = useRouter();
   const [selectedCategoriaId, setSelectedCategoriaId] = useState<number | null>(
     categorias[0]?.id ?? null,
@@ -130,7 +131,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
     }));
 
     if (ordenExistente) {
-      const result = await agregarItemsOrden(ordenExistente.id, items);
+      const result = await crearSubOrden(ordenExistente.id, items);
       setIsSubmitting(false);
       setShowConfirm(false);
 
@@ -145,6 +146,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente }: Ne
         mesa.id,
         notaGeneral || null,
         items,
+        comensales,
       );
 
       setIsSubmitting(false);

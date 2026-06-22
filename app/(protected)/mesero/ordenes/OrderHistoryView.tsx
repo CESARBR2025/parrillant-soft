@@ -115,11 +115,10 @@ export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
           <button
             key={f.value}
             onClick={() => setFilter(f.value)}
-            className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-              filter === f.value
-                ? 'bg-accent text-white shadow-sm'
-                : 'bg-card text-muted hover:text-body border border-border/60'
-            }`}
+            className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${filter === f.value
+              ? 'bg-accent text-white shadow-sm'
+              : 'bg-card text-muted hover:text-body border border-border/60'
+              }`}
           >
             {f.label}
           </button>
@@ -199,9 +198,8 @@ export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
                       {orden.detalles_orden.map(d => (
                         <div key={d.id} className="flex items-start gap-2.5 px-3.5 py-3">
                           <span
-                            className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                              d.listo ? 'bg-green-500' : 'bg-yellow-400'
-                            }`}
+                            className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${d.listo ? 'bg-green-500' : 'bg-yellow-400'
+                              }`}
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">

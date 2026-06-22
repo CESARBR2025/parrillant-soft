@@ -15,21 +15,6 @@ export async function abrirMesa(mesa_id: number, comensales: number) {
     return { error: 'Debe haber al menos 1 comensal' };
   }
 
-  const { data: orden, error } = await supabase
-    .from('ordenes')
-    .insert({
-      mesa_id,
-      mesero_id: user.id,
-      estado: 'pendiente',
-      comensales,
-    })
-    .select('id')
-    .single();
-
-  if (error || !orden) {
-    return { error: error?.message ?? 'Error al abrir la mesa' };
-  }
-
   await supabase
     .from('mesas')
     .update({ estado: 'ocupada' })
@@ -37,5 +22,5 @@ export async function abrirMesa(mesa_id: number, comensales: number) {
 
   revalidatePath('/mesero');
 
-  return { success: true, ordenId: orden.id };
+  return { success: true };
 }

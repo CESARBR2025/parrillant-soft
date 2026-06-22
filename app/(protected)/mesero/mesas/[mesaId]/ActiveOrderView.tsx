@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/Badge';
 import { servirCategoria } from '@/app/actions/servirCategoria';
 import { solicitarCuenta } from '@/app/actions/solicitarCuenta';
 import { UtensilsCrossed, Wine, Check } from 'lucide-react';
+import type { Database } from '@/types/database.types';
 
 interface Detalle {
   id: number;
@@ -28,6 +29,7 @@ interface Orden {
   created_at: string;
   alimentos_servidos: boolean;
   bebidas_servidos: boolean;
+  comensales?: number | null;
   detalles_orden: Detalle[];
 }
 
@@ -45,17 +47,24 @@ const ESTADO_CONFIG: Record<string, { label: string; variant: 'default' | 'succe
   cuenta_solicitada: { label: 'Cuenta Solicitada', variant: 'info' },
 };
 
+const DETALLE_HIDDEN = ['cerrado', 'cancelado', 'cuenta_solicitada'];
+
+function itemsListos(detalles: Detalle[]): boolean {
+  const sinServir = detalles.filter(d => !d.servido);
+  return sinServir.length > 0 && sinServir.every(d => d.listo);
+}
+
 function RondaSection({
+  ordenId,
   rondaNum,
   items,
-  itemsReady,
   onServir,
   isSubmitting,
 }: {
+  ordenId: number;
   rondaNum: number;
   items: Detalle[];
-  itemsReady: boolean;
-  onServir: (ronda: number, tipo: 'alimento' | 'bebida') => void;
+  onServir: (ordenId: number, ronda: number, tipo: 'alimento' | 'bebida') => void;
   isSubmitting: string | null;
 }) {
   const alimentos = items.filter(d => d.tipo === 'alimento');
@@ -64,6 +73,7 @@ function RondaSection({
   const hasBebidasSinServir = bebidas.some(d => !d.servido);
 
   const rondaLabel = rondaNum === 1 ? 'Orden inicial' : `Ronda ${rondaNum}`;
+  const ready = itemsListos(items);
 
   return (
     <section>
@@ -103,14 +113,14 @@ function RondaSection({
               </li>
             ))}
           </ul>
-          {itemsReady && hasAlimentosSinServir && (
+          {ready && hasAlimentosSinServir && (
             <div className="px-5 pb-3 pt-1">
               <button
-                onClick={() => onServir(rondaNum, 'alimento')}
+                onClick={() => onServir(ordenId, rondaNum, 'alimento')}
                 disabled={isSubmitting !== null}
                 className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isSubmitting === `${rondaNum}-alimento` ? 'Procesando...' : (
+                {isSubmitting === `${ordenId}-${rondaNum}-alimento` ? 'Procesando...' : (
                   <>
                     <UtensilsCrossed className="w-4 h-4" />
                     Servir alimentos
@@ -119,7 +129,7 @@ function RondaSection({
               </button>
             </div>
           )}
-          {hasAlimentosSinServir && !itemsReady && (
+          {hasAlimentosSinServir && !ready && (
             <div className="px-5 pb-3 pt-1">
               <div className="rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-xs text-amber-700 text-center">
                 Esperando que estén listos
@@ -160,14 +170,14 @@ function RondaSection({
               </li>
             ))}
           </ul>
-          {itemsReady && hasBebidasSinServir && (
+          {ready && hasBebidasSinServir && (
             <div className="px-5 pb-3 pt-1">
               <button
-                onClick={() => onServir(rondaNum, 'bebida')}
+                onClick={() => onServir(ordenId, rondaNum, 'bebida')}
                 disabled={isSubmitting !== null}
                 className="w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isSubmitting === `${rondaNum}-bebida` ? 'Procesando...' : (
+                {isSubmitting === `${ordenId}-${rondaNum}-bebida` ? 'Procesando...' : (
                   <>
                     <Wine className="w-4 h-4" />
                     Servir bebidas
@@ -176,7 +186,7 @@ function RondaSection({
               </button>
             </div>
           )}
-          {hasBebidasSinServir && !itemsReady && (
+          {hasBebidasSinServir && !ready && (
             <div className="px-5 pb-3 pt-1">
               <div className="rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-xs text-amber-700 text-center">
                 Esperando que estén listos
@@ -189,81 +199,19 @@ function RondaSection({
   );
 }
 
-export function ActiveOrderView({ mesa, orden: ordenInicial }: { mesa: Mesa; orden: Orden }) {
-  const router = useRouter();
-  const [orden, setOrden] = useState<Orden>(ordenInicial);
-  const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
-  const pollRef = useRef<() => void>(() => { });
-
-  useEffect(() => {
-    const ordenId = ordenInicial.id;
-    const supabase = createClientSupabaseClient();
-
-    async function poll() {
-      const { data, error } = await supabase
-        .from('ordenes')
-        .select(`
-          id,
-          estado,
-          notas,
-          created_at,
-          alimentos_servidos,
-          bebidas_servidos,
-          detalles_orden (
-            id,
-            cantidad,
-            notas,
-            listo,
-            tipo,
-            ronda,
-            servido,
-            producto_id,
-            precio_unitario,
-            productos_menu (nombre, precio)
-          )
-        `)
-        .eq('id', ordenId)
-        .single();
-
-      if (data) {
-        setOrden(data as unknown as Orden);
-      } else if (error) {
-        console.error('[poll] Error fetching orden', error);
-      }
-    }
-
-    pollRef.current = poll;
-
-    poll();
-
-    const channel = supabase
-      .channel(`mesa-orden-${ordenId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'ordenes',
-        filter: `id=eq.${ordenId}`,
-      }, () => poll())
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'detalles_orden',
-        filter: `orden_id=eq.${ordenId}`,
-      }, () => poll())
-      .subscribe();
-
-    const interval = setInterval(poll, 5000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(interval);
-    };
-  }, [ordenInicial.id]);
-
-  const allItemsReady = orden.detalles_orden.length > 0 && orden.detalles_orden.every(d => d.listo);
-  const cfg = ESTADO_CONFIG[orden.estado];
-
-  // Sort by id (insertion order) to maintain ronda sequence
+function OrdenSection({
+  orden,
+  label,
+  isParent,
+  onServir,
+  isSubmitting,
+}: {
+  orden: Orden;
+  label: string;
+  isParent: boolean;
+  onServir: (ordenId: number, ronda: number, tipo: 'alimento' | 'bebida') => void;
+  isSubmitting: string | null;
+}) {
   const rondas = useMemo(() => {
     const map = new Map<number, Detalle[]>();
     for (const d of orden.detalles_orden) {
@@ -274,12 +222,140 @@ export function ActiveOrderView({ mesa, orden: ordenInicial }: { mesa: Mesa; ord
     return [...map.entries()].sort(([a], [b]) => a - b);
   }, [orden.detalles_orden]);
 
-  const handleServir = async (ronda: number, tipo: 'alimento' | 'bebida') => {
-    const key = `${ronda}-${tipo}`;
+  const hidden = DETALLE_HIDDEN.includes(orden.estado) &&
+    orden.detalles_orden.every(d => d.servido);
+
+  if (hidden) return null;
+
+  const cfg = ESTADO_CONFIG[orden.estado];
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+        <span className="text-sm font-bold text-gray-700">{label}</span>
+        {cfg && <Badge variant={cfg.variant}>{cfg.label}</Badge>}
+      </div>
+
+      {rondas.map(([rondaNum, items], idx) => (
+        <div key={rondaNum}>
+          {idx > 0 && <div className="border-t-2 border-dashed border-gray-300" />}
+          <RondaSection
+            ordenId={orden.id}
+            rondaNum={rondaNum}
+            items={items}
+            onServir={onServir}
+            isSubmitting={isSubmitting}
+          />
+        </div>
+      ))}
+
+      {rondas.length === 0 && (
+        <div className="px-5 py-6 text-center text-sm text-gray-400">
+          Sin ítems
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ActiveOrderView({
+  mesa,
+  ordenPadre: padreInicial,
+  subOrdenes: subsIniciales,
+}: {
+  mesa: Mesa;
+  ordenPadre: Orden;
+  subOrdenes: Orden[];
+}) {
+  const router = useRouter();
+  const [padre, setPadre] = useState<Orden>(padreInicial);
+  const [subOrdenes, setSubOrdenes] = useState<Orden[]>(subsIniciales);
+  const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    const supabase = createClientSupabaseClient();
+    const ESTADOS_ACTIVOS: Database['public']['Enums']['estado_orden'][] = ['pendiente', 'en_preparacion', 'listo', 'entregado', 'cuenta_solicitada'];
+
+    const { data: p } = await supabase
+      .from('ordenes')
+      .select(`
+        id, estado, notas, created_at, alimentos_servidos, bebidas_servidos, comensales,
+        detalles_orden (
+          id, cantidad, notas, listo, tipo, ronda, servido, producto_id, precio_unitario,
+          productos_menu (nombre, precio)
+        )
+      `)
+      .eq('id', padreInicial.id)
+      .single();
+
+    if (p) setPadre(p as unknown as Orden);
+
+    const { data: subs } = await supabase
+      .from('ordenes')
+      .select(`
+        id, estado, notas, created_at, alimentos_servidos, bebidas_servidos,
+        detalles_orden (
+          id, cantidad, notas, listo, tipo, ronda, servido, producto_id, precio_unitario,
+          productos_menu (nombre, precio)
+        )
+      `)
+      .eq('orden_padre_id', padreInicial.id)
+      .in('estado', ESTADOS_ACTIVOS)
+      .order('created_at', { ascending: true });
+
+    if (subs) setSubOrdenes(subs as unknown as Orden[]);
+  }, [padreInicial.id]);
+
+  useEffect(() => {
+    const supabase = createClientSupabaseClient();
+
+    fetchData();
+
+    const channel = supabase
+      .channel(`mesa-${mesa.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'ordenes',
+        filter: `id=eq.${padreInicial.id}`,
+      }, () => fetchData())
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'detalles_orden',
+      }, () => fetchData())
+      .subscribe();
+
+    const interval = setInterval(fetchData, 5000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [mesa.id, padreInicial.id, fetchData]);
+
+  const todasEntregadas = useMemo(() => {
+    if (padre.estado !== 'entregado') return false;
+    return subOrdenes.every(s => s.estado === 'entregado');
+  }, [padre.estado, subOrdenes]);
+
+  const handleServir = async (ordenId: number, ronda: number, tipo: 'alimento' | 'bebida') => {
+    const key = `${ordenId}-${ronda}-${tipo}`;
     setIsSubmitting(key);
-    await servirCategoria(orden.id, tipo, ronda);
+    await servirCategoria(ordenId, tipo, ronda);
     setIsSubmitting(null);
   };
+
+  const handleSolicitarCuenta = async () => {
+    setIsSubmitting('cuenta');
+    const result = await solicitarCuenta(padre.id);
+    setIsSubmitting(null);
+    if (result.error) {
+      console.error(result.error);
+    }
+  };
+
+  const cfg = ESTADO_CONFIG[padre.estado];
 
   return (
     <div className="space-y-6">
@@ -298,6 +374,11 @@ export function ActiveOrderView({ mesa, orden: ordenInicial }: { mesa: Mesa; ord
                 {mesa.zona.replace('_', ' ')}
               </span>
             )}
+            {padre.comensales != null && (
+              <span className="text-sm font-normal text-gray-400 ml-2">
+                {padre.comensales} comensal{padre.comensales !== 1 ? 'es' : ''}
+              </span>
+            )}
           </h1>
         </div>
         {cfg && (
@@ -305,54 +386,44 @@ export function ActiveOrderView({ mesa, orden: ordenInicial }: { mesa: Mesa; ord
         )}
       </div>
 
-      {orden.notas && (
-        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-          Nota: {orden.notas}
-        </div>
-      )}
+      <OrdenSection
+        orden={padre}
+        label="Orden inicial"
+        isParent
+        onServir={handleServir}
+        isSubmitting={isSubmitting}
+      />
 
-      {/* Items grouped by ronda */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-        {rondas.map(([rondaNum, items], idx) => (
-          <div key={rondaNum}>
-            {idx > 0 && <div className="border-t-2 border-dashed border-gray-300" />}
-            <RondaSection
-              rondaNum={rondaNum}
-              items={items}
-              itemsReady={allItemsReady}
-              onServir={handleServir}
-              isSubmitting={isSubmitting}
-            />
-          </div>
-        ))}
-      </div>
+      {subOrdenes.map((sub, idx) => (
+        <OrdenSection
+          key={sub.id}
+          orden={sub}
+          label={`Adicional ${idx + 1}`}
+          isParent={false}
+          onServir={handleServir}
+          isSubmitting={isSubmitting}
+        />
+      ))}
 
       <div className="flex flex-col gap-3">
-        {(orden.estado === 'pendiente' || orden.estado === 'en_preparacion' || orden.estado === 'entregado') && (
+        {(padre.estado === 'pendiente' || padre.estado === 'en_preparacion' || padre.estado === 'entregado') && (
           <button
-            onClick={() => router.push(`/mesero/mesas/${mesa.id}/nueva?ordenId=${orden.id}`)}
+            onClick={() => router.push(`/mesero/mesas/${mesa.id}/nueva?ordenId=${padre.id}`)}
             className="w-full rounded-xl bg-accent text-white px-4 py-3 text-sm font-medium hover:bg-accent-dark transition-colors"
           >
-            + Agregar {orden.estado === 'pendiente' ? '' : 'más '}ítems
+            + Agregar ítems
           </button>
         )}
 
-        {orden.estado === 'listo' && !allItemsReady && (
+        {padre.estado === 'entregado' && subOrdenes.some(s => s.estado !== 'entregado') && (
           <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700 text-center">
-            Esperando a que todos los ítems estén listos
+            Esperando a que los pedidos adicionales estén servidos
           </div>
         )}
 
-        {orden.estado === 'entregado' && (
+        {todasEntregadas && (
           <button
-            onClick={async () => {
-              setIsSubmitting('cuenta');
-              const result = await solicitarCuenta(orden.id);
-              setIsSubmitting(null);
-              if (result.error) {
-                console.error(result.error);
-              }
-            }}
+            onClick={handleSolicitarCuenta}
             disabled={isSubmitting !== null}
             className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
@@ -360,7 +431,7 @@ export function ActiveOrderView({ mesa, orden: ordenInicial }: { mesa: Mesa; ord
           </button>
         )}
 
-        {orden.estado === 'cuenta_solicitada' && (
+        {padre.estado === 'cuenta_solicitada' && (
           <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700 text-center">
             Esperando cobro en Caja
           </div>

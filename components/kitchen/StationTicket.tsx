@@ -37,9 +37,10 @@ interface StationTicketProps {
   order: QueueItem;
   onMarkReady: (ordenId: number) => void;
   isPending: boolean;
+  esSubOrden?: boolean;
 }
 
-export function StationTicket({ order, onMarkReady, isPending }: StationTicketProps) {
+export function StationTicket({ order, onMarkReady, isPending, esSubOrden }: StationTicketProps) {
   return (
     <div
       className={`rounded-2xl border-2 border-l-4 border-border/60 shadow-sm
@@ -50,7 +51,9 @@ export function StationTicket({ order, onMarkReady, isPending }: StationTicketPr
       <div className="flex items-center justify-between px-5 pt-5 pb-3">
         <div className="flex items-center gap-3">
           <span className={`w-3 h-3 rounded-full ${getUrgencyDot(order.elapsedMs)}`} />
-          <span className="text-2xl font-bold text-text-primary">MESA {order.mesa_numero}</span>
+          <span className="text-2xl font-bold text-text-primary">
+            MESA {order.mesa_numero}{esSubOrden ? ' — Adicional' : ''}
+          </span>
         </div>
         <span className="inline-flex items-center rounded-full bg-bg-base px-3 py-1 text-xs font-medium text-muted">
           {formatHora(order.created_at)}

@@ -25,13 +25,33 @@ export async function solicitarCuenta(orden_id: number) {
     return { error: 'Solo puedes solicitar cuenta cuando la orden ha sido servida' };
   }
 
-  const { error } = await supabase
+  // Check all sub-orders are also entregado
+  const { data: subs } = await supabase
+    .from('ordenes')
+    .select('id, estado')
+    .eq('orden_padre_id', orden_id);
+
+  const subsPendientes = (subs ?? []).filter(s => s.estado !== 'entregado');
+  if (subsPendientes.length > 0) {
+    return { error: 'Hay pedidos adicionales pendientes por servir' };
+  }
+
+  // Mark parent as cuenta_solicitada
+  const { error: parentError } = await supabase
     .from('ordenes')
     .update({ estado: 'cuenta_solicitada' })
     .eq('id', orden_id);
 
-  if (error) {
-    return { error: error.message };
+  if (parentError) {
+    return { error: parentError.message };
+  }
+
+  // Mark all sub-orders as cuenta_solicitada
+  if ((subs ?? []).length > 0) {
+    await supabase
+      .from('ordenes')
+      .update({ estado: 'cuenta_solicitada' })
+      .eq('orden_padre_id', orden_id);
   }
 
   revalidatePath('/mesero');

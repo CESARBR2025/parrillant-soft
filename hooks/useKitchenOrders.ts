@@ -27,6 +27,7 @@ export interface KitchenOrder {
   mesa_id: number;
   mesa_numero: number;
   items: KitchenItem[];
+  esSubOrden: boolean;
 }
 
 export interface KitchenOrdersGrouped {
@@ -44,6 +45,7 @@ const TIEMPO_LIMITE_MINUTOS = 15;
 
 interface OrdenWithRelations extends OrdenRow {
   mesas: { numero: number } | null;
+  orden_padre_id: number | null;
   detalles_orden: (DetalleRow & {
     productos_menu: { nombre: string } | null;
   })[];
@@ -71,6 +73,7 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
         created_at,
         updated_at,
         mesa_id,
+        orden_padre_id,
         mesas (numero),
         detalles_orden (
           id,
@@ -115,6 +118,7 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
           mesa_id: o.mesa_id,
           mesa_numero: mesaNumero,
           items,
+          esSubOrden: o.orden_padre_id !== null,
         };
       })
       .filter((o) => o.items.length > 0);

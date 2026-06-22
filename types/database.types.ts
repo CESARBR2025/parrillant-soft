@@ -141,6 +141,7 @@ export type Database = {
           mesero_id: string;
           metodo_pago: string | null;
           notas: string | null;
+          orden_padre_id: number | null;
           pagado_con: number | null;
           total: number | null;
           updated_at: string;
@@ -157,6 +158,7 @@ export type Database = {
           mesero_id: string;
           metodo_pago?: string | null;
           notas?: string | null;
+          orden_padre_id?: number | null;
           pagado_con?: number | null;
           total?: number | null;
           updated_at?: string;
@@ -173,6 +175,7 @@ export type Database = {
           mesero_id?: string;
           metodo_pago?: string | null;
           notas?: string | null;
+          orden_padre_id?: number | null;
           pagado_con?: number | null;
           total?: number | null;
           updated_at?: string;
@@ -197,6 +200,13 @@ export type Database = {
             columns: ["mesero_id"];
             isOneToOne: false;
             referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ordenes_orden_padre_id_fkey";
+            columns: ["orden_padre_id"];
+            isOneToOne: false;
+            referencedRelation: "ordenes";
             referencedColumns: ["id"];
           },
         ];
