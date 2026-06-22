@@ -8,11 +8,11 @@ interface BadgeProps {
 
 const variantStyles: Record<BadgeVariant, string> = {
   default: 'bg-card text-muted',
-  success: 'bg-green-900/30 text-green-400',
-  warning: 'bg-yellow-900/30 text-yellow-400',
-  danger: 'bg-red-900/30 text-red-400',
-  info: 'bg-blue-900/30 text-blue-400',
-  purple: 'bg-purple-900/30 text-purple-400',
+  success: 'bg-green-500/10 text-green-600',
+  warning: 'bg-yellow-500/10 text-yellow-600',
+  danger: 'bg-red-500/10 text-red-600',
+  info: 'bg-blue-500/10 text-blue-600',
+  purple: 'bg-purple-500/10 text-purple-600',
 };
 
 export function Badge({ variant = 'default', children, className = '' }: BadgeProps) {

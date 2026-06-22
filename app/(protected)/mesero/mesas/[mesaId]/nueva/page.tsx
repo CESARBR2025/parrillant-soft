@@ -7,10 +7,10 @@ export default async function NuevaOrdenPage({
   searchParams,
 }: {
   params: Promise<{ mesaId: string }>;
-  searchParams: Promise<{ ordenId?: string }>;
+  searchParams: Promise<{ ordenId?: string; comensales?: string }>;
 }) {
   const { mesaId } = await params;
-  const { ordenId } = await searchParams;
+  const { ordenId, comensales } = await searchParams;
   const supabase = await createServerSupabaseClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -52,6 +52,7 @@ export default async function NuevaOrdenPage({
       categorias={categorias ?? []}
       productos={productos ?? []}
       ordenExistente={ordenExistente}
+      comensales={comensales ? Number(comensales) : undefined}
     />
   );
 }

@@ -30,7 +30,6 @@ const TRANSICIONES_VALIDAS: Record<string, string[]> = {
 };
 
 type OrdenUpdate = Database["public"]["Tables"]["ordenes"]["Update"];
-const updateData: OrdenUpdate = {};
 
 export async function PATCH(
   request: NextRequest,
@@ -74,20 +73,51 @@ export async function PATCH(
       );
     }
 
+    const ordenId = Number(id);
+
+    // Check if this is a parent order (has sub-orders)
+    const { data: orden } = await supabase
+      .from("ordenes")
+      .select("id, mesa_id, orden_padre_id")
+      .eq("id", ordenId)
+      .single();
+
+    if (!orden) {
+      return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
+    }
+
+    const esPadre = orden.orden_padre_id === null;
+
+    // Get sub-order IDs if this is a parent
+    let subIds: number[] = [];
+    if (esPadre) {
+      const { data: subs } = await supabase
+        .from("ordenes")
+        .select("id")
+        .eq("orden_padre_id", ordenId);
+      subIds = (subs ?? []).map(s => s.id);
+    }
+
+    const updateData: OrdenUpdate = {};
     updateData.estado = estado;
 
-    // Si se cierra, calcular total y registrar quién cerró
+    // Si se cierra, calcular total consolidado y registrar quién cerró
     if (estado === "cerrado") {
-      const { data: detalles } = await supabase
-        .from("detalles_orden")
-        .select("cantidad, precio_unitario")
-        .eq("orden_id", Number(id));
+      const calcTotal = async (oid: number): Promise<number> => {
+        const { data: detalles } = await supabase
+          .from("detalles_orden")
+          .select("cantidad, precio_unitario")
+          .eq("orden_id", oid);
+        return detalles?.reduce((acc: number, d: { cantidad: number; precio_unitario: number }) =>
+          acc + d.cantidad * Number(d.precio_unitario), 0) ?? 0;
+      };
 
-      const total =
-        detalles?.reduce(
-          (acc, d) => acc + d.cantidad * Number(d.precio_unitario),
-          0,
-        ) ?? 0;
+      let total = await calcTotal(ordenId);
+
+      // Include sub-order totals
+      for (const subId of subIds) {
+        total += await calcTotal(subId);
+      }
 
       updateData.total = total;
       updateData.cerrado_por_id = user.id;
@@ -98,7 +128,7 @@ export async function PATCH(
     const { data: ordenActualizada, error } = await supabase
       .from("ordenes")
       .update(updateData)
-      .eq("id", Number(id))
+      .eq("id", ordenId)
       .select()
       .single();
 
@@ -106,8 +136,21 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // Si la orden se cierra, liberar la mesa
-    if (estado === "cerrado" && ordenActualizada?.mesa_id) {
+    // If parent is being closed, also close all sub-orders
+    if (esPadre && estado === "cerrado" && subIds.length > 0) {
+      const subUpdate: OrdenUpdate = {
+        estado: "cerrado",
+        cerrado_por_id: user.id,
+        metodo_pago: updateData.metodo_pago,
+      };
+      await supabase.from("ordenes").update(subUpdate).in("id", subIds);
+    }
+
+    // If this is a sub-order being closed independently (shouldn't normally happen), close it
+    // but DON'T free the mesa (parent order still active)
+
+    // Only free the mesa if this is a parent order
+    if (estado === "cerrado" && esPadre && ordenActualizada?.mesa_id) {
       await supabase
         .from("mesas")
         .update({ estado: "disponible" })

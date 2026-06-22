@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
@@ -26,12 +26,21 @@ interface OrdenData {
   detalles_orden: Detalle[]
 }
 
+interface BillItem {
+  id: number
+  cantidad: number
+  nombre: string
+  precio_unitario: number
+  notas: string | null
+}
+
 export default function CobrarPage() {
   const { ordenId } = useParams<{ ordenId: string }>()
   const router = useRouter()
   const supabase = createClientSupabaseClient()
 
   const [orden, setOrden] = useState<OrdenData | null>(null)
+  const [subOrdenes, setSubOrdenes] = useState<OrdenData[]>([])
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
   const [discount, setDiscount] = useState(0)
@@ -44,41 +53,75 @@ export default function CobrarPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    supabase
-      .from('ordenes')
-      .select(
-        `id, estado, created_at, mesa_id,
-        mesas (numero, zona),
-        detalles_orden (id, cantidad, precio_unitario, notas, productos_menu (nombre))`,
-      )
-      .eq('id', Number(ordenId))
-      .single()
-      .then(({ data, error: err }) => {
-        if (err || !data) {
-          router.push('/caja')
-          return
-        }
-        if (data.estado !== 'entregado' && data.estado !== 'cuenta_solicitada') {
-          router.push('/caja')
-          return
-        }
-        setOrden(data as unknown as OrdenData)
-        setLoading(false)
-      })
-  }, [ordenId, router, supabase])
+    async function load() {
+      const { data, error: err } = await supabase
+        .from('ordenes')
+        .select(
+          `id, estado, created_at, mesa_id,
+          mesas (numero, zona),
+          detalles_orden (id, cantidad, precio_unitario, notas, productos_menu (nombre))`,
+        )
+        .eq('id', Number(ordenId))
+        .single();
+
+      if (err || !data) {
+        router.push('/caja');
+        return;
+      }
+      if (data.estado !== 'entregado' && data.estado !== 'cuenta_solicitada') {
+        router.push('/caja');
+        return;
+      }
+      setOrden(data as unknown as OrdenData);
+
+      // Fetch sub-orders
+      const { data: subs } = await supabase
+        .from('ordenes')
+        .select(
+          `id, estado, created_at, mesa_id,
+          detalles_orden (id, cantidad, precio_unitario, notas, productos_menu (nombre))`,
+        )
+        .eq('orden_padre_id', Number(ordenId))
+        .in('estado', ['entregado', 'cuenta_solicitada'])
+        .order('created_at', { ascending: true });
+
+      setSubOrdenes((subs ?? []) as unknown as OrdenData[]);
+      setLoading(false);
+    }
+
+    load();
+  }, [ordenId, router, supabase]);
+
+  const todasOrdenes = useMemo(() => {
+    const result = [orden!];
+    if (subOrdenes.length > 0) result.push(...subOrdenes);
+    return result.filter(Boolean);
+  }, [orden, subOrdenes]);
+
+  const billItems: BillItem[] = useMemo(() => {
+    return todasOrdenes.flatMap(o =>
+      o.detalles_orden.map(d => ({
+        id: d.id,
+        cantidad: d.cantidad,
+        nombre: d.productos_menu?.nombre ?? 'Producto',
+        precio_unitario: d.precio_unitario,
+        notas: d.notas,
+      }))
+    );
+  }, [todasOrdenes]);
+
+  const subtotal = useMemo(() =>
+    billItems.reduce((acc, item) => acc + item.cantidad * item.precio_unitario, 0),
+  [billItems]);
+
+  const totalConDescuento = Math.max(0, subtotal - discount);
 
   const handlePay = useCallback(
     async (method: PaymentMethod, recibido: number) => {
-      if (!orden) return
+      if (!orden) return;
 
-      const total = orden.detalles_orden.reduce(
-        (acc, d) => acc + d.cantidad * d.precio_unitario,
-        0,
-      )
-      const totalConDescuento = Math.max(0, total - discount)
-
-      setPaying(true)
-      setError('')
+      setPaying(true);
+      setError('');
 
       try {
         const res = await fetch(`/api/ordenes/${orden.id}/estado`, {
@@ -89,11 +132,11 @@ export default function CobrarPage() {
             metodo_pago: method,
             pagado_con: method === 'efectivo' ? recibido : totalConDescuento,
           }),
-        })
+        });
 
         if (!res.ok) {
-          const data = await res.json()
-          throw new Error(data.error ?? 'Error al procesar el pago')
+          const data = await res.json();
+          throw new Error(data.error ?? 'Error al procesar el pago');
         }
 
         if (discount > 0) {
@@ -108,29 +151,15 @@ export default function CobrarPage() {
           recibido: method === 'efectivo' ? recibido : totalConDescuento,
           cambio: method === 'efectivo' ? recibido - totalConDescuento : 0,
           total: totalConDescuento,
-        })
+        });
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al procesar el pago')
+        setError(err instanceof Error ? err.message : 'Error al procesar el pago');
       } finally {
-        setPaying(false)
+        setPaying(false);
       }
     },
-    [orden, discount, supabase],
-  )
-
-  const subtotal = orden?.detalles_orden.reduce(
-    (acc, d) => acc + d.cantidad * d.precio_unitario,
-    0,
-  ) ?? 0
-  const totalConDescuento = Math.max(0, subtotal - discount)
-
-  const billItems = (orden?.detalles_orden ?? []).map((d) => ({
-    id: d.id,
-    cantidad: d.cantidad,
-    nombre: d.productos_menu?.nombre ?? 'Producto',
-    precio_unitario: d.precio_unitario,
-    notas: d.notas,
-  }))
+    [orden, totalConDescuento, discount, supabase],
+  );
 
   const handlePrint = useCallback(() => {
     const printWindow = window.open(
@@ -239,10 +268,10 @@ export default function CobrarPage() {
         <ReceiptPreview
           numeroMesa={orden.mesas?.numero ?? 0}
           zona={orden.mesas?.zona}
-          items={orden.detalles_orden.map((d) => ({
-            nombre: d.productos_menu?.nombre ?? 'Producto',
-            cantidad: d.cantidad,
-            precio_unitario: d.precio_unitario,
+          items={billItems.map(i => ({
+            nombre: i.nombre,
+            cantidad: i.cantidad,
+            precio_unitario: i.precio_unitario,
           }))}
           total={receipt.total}
           metodoPago={receipt.metodoPago}
@@ -272,6 +301,11 @@ export default function CobrarPage() {
         </h1>
         {orden.mesas?.zona && (
           <p className="text-sm text-muted mt-1">{orden.mesas.zona}</p>
+        )}
+        {subOrdenes.length > 0 && (
+          <p className="text-xs text-muted mt-1">
+            Incluye {subOrdenes.length} pedido{subOrdenes.length > 1 ? 's' : ''} adicional{subOrdenes.length > 1 ? 'es' : ''}
+          </p>
         )}
       </div>
 

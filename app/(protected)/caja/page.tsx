@@ -1,12 +1,25 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { CreditCard, Clock } from 'lucide-react'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 
-type Orden = Database['public']['Tables']['ordenes']['Row'] & {
+type OrdenRow = Database['public']['Tables']['ordenes']['Row']
+
+interface OrdenConSubs {
+  id: number
+  estado: string
+  total: number | null
+  created_at: string
+  mesa_id: number
+  mesero_id: string
+  notas: string | null
+  metodo_pago: string | null
+  pagado_con: number | null
+  cerrado_por_id: string | null
+  updated_at: string
   mesas: { numero: number; zona: string | null } | null
   detalles_orden: {
     cantidad: number
@@ -14,12 +27,13 @@ type Orden = Database['public']['Tables']['ordenes']['Row'] & {
     listo: boolean
     productos_menu: { nombre: string } | null
   }[]
+  subTotal?: number
 }
 
 export default function CajaPage() {
   const router = useRouter()
   const supabase = createClientSupabaseClient()
-  const [ordenes, setOrdenes] = useState<Orden[]>([])
+  const [ordenes, setOrdenes] = useState<OrdenConSubs[]>([])
   const [resumen, setResumen] = useState({ totalVentas: 0, ordenesCerradas: 0 })
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState(() => Date.now())
@@ -31,7 +45,7 @@ export default function CajaPage() {
       const hoy = new Date()
       hoy.setHours(0, 0, 0, 0)
 
-      const [ordenesRes, cerradasRes] = await Promise.all([
+      const [ordenesRes, subsRes, cerradasRes] = await Promise.all([
         supabase
           .from('ordenes')
           .select(
@@ -39,8 +53,14 @@ export default function CajaPage() {
           mesas (numero, zona),
           detalles_orden (cantidad, precio_unitario, listo, productos_menu (nombre))`,
           )
+          .is('orden_padre_id', null)
           .in('estado', ['entregado', 'cuenta_solicitada'])
           .order('created_at', { ascending: true }),
+        supabase
+          .from('ordenes')
+          .select('id, orden_padre_id')
+          .in('estado', ['entregado', 'cuenta_solicitada'])
+          .not('orden_padre_id', 'is', null),
         supabase
           .from('ordenes')
           .select('total', { count: 'exact' })
@@ -51,7 +71,34 @@ export default function CajaPage() {
       if (cancelled) return
 
       if (ordenesRes.data) {
-        setOrdenes(ordenesRes.data as unknown as Orden[])
+        const subIds = new Set((subsRes.data ?? []).map(s => s.orden_padre_id));
+
+        const enriched = await Promise.all(
+          (ordenesRes.data as unknown as OrdenConSubs[]).map(async (orden) => {
+            let subTotal = 0;
+            if (subIds.has(orden.id)) {
+              const { data: subDetalles } = await supabase
+                .from('ordenes')
+                .select(`
+                  detalles_orden (cantidad, precio_unitario)
+                `)
+                .eq('orden_padre_id', orden.id);
+
+              if (subDetalles) {
+                for (const sub of subDetalles) {
+                  const detalles = sub as unknown as { detalles_orden: { cantidad: number; precio_unitario: number }[] };
+                  if (detalles.detalles_orden) {
+                    for (const d of detalles.detalles_orden) {
+                      subTotal += d.cantidad * Number(d.precio_unitario);
+                    }
+                  }
+                }
+              }
+            }
+            return { ...orden, subTotal };
+          })
+        );
+        setOrdenes(enriched);
       }
       if (cerradasRes.data) {
         setResumen({
@@ -137,10 +184,10 @@ export default function CajaPage() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {ordenes.map((orden) => {
             const total =
-              orden.detalles_orden?.reduce(
+              (orden.detalles_orden?.reduce(
                 (acc, d) => acc + d.cantidad * Number(d.precio_unitario),
                 0,
-              ) ?? 0
+              ) ?? 0) + (orden.subTotal ?? 0)
 
             return (
               <button
@@ -171,6 +218,7 @@ export default function CajaPage() {
                   <div>
                     <p className="text-xs text-muted">
                       {orden.detalles_orden?.length ?? 0} ítems
+                      {orden.subTotal && orden.subTotal > 0 ? ' + adicionales' : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

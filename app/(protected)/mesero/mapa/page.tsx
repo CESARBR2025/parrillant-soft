@@ -16,17 +16,27 @@ export default async function MapaPage() {
 
   const { data: ordenesActivas } = await supabase
     .from('ordenes')
-    .select('id, mesa_id, created_at, estado, comensales')
+    .select('id, mesa_id, created_at, estado, comensales, orden_padre_id')
     .in('estado', ['pendiente', 'en_preparacion', 'listo', 'entregado', 'cuenta_solicitada']);
 
-  const ordenesPorMesa = new Map(
-    ordenesActivas?.map(o => [o.mesa_id, {
-      id: o.id,
-      created_at: o.created_at,
-      orden_estado: o.estado,
-      comensales: o.comensales,
-    }]) ?? []
-  );
+  const ordenesPorMesa = new Map<number, { id: number; created_at: string; orden_estado: string; comensales: number | null }>();
+  for (const o of ordenesActivas ?? []) {
+    if (!o.orden_padre_id) {
+      ordenesPorMesa.set(o.mesa_id, {
+        id: o.id,
+        created_at: o.created_at,
+        orden_estado: o.estado,
+        comensales: o.comensales,
+      });
+    } else if (!ordenesPorMesa.has(o.mesa_id)) {
+      ordenesPorMesa.set(o.mesa_id, {
+        id: o.id,
+        created_at: o.created_at,
+        orden_estado: o.estado,
+        comensales: null,
+      });
+    }
+  }
 
   const mesasConOrdenes = (mesas ?? []).map(m => {
     const orden = ordenesPorMesa.get(m.id);
