@@ -37,6 +37,7 @@ export interface KitchenOrdersGrouped {
 
 export interface QueueItem extends KitchenOrder {
   elapsedMs: number;
+  excedeTiempo: boolean;
 }
 
 const TIEMPO_LIMITE_MINUTOS = 15;
@@ -227,6 +228,7 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
     .map((o) => ({
       ...o,
       elapsedMs: now - new Date(o.updated_at ?? o.created_at).getTime(),
+      excedeTiempo: (now - new Date(o.created_at).getTime()) > TIEMPO_LIMITE_MINUTOS * 60 * 1000,
     }))
     .sort((a, b) => b.elapsedMs - a.elapsedMs);
 

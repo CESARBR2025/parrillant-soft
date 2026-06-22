@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { TableCard } from './TableCard';
-import { Search, MapPin, UtensilsCrossed, X } from 'lucide-react';
+import { Search, MapPin, UtensilsCrossed, X, UserPlus } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import { abrirMesa } from '@/app/actions/abrirMesa';
 import type { Tables } from '@/types/database.types';
 
@@ -40,9 +41,9 @@ interface StatDef {
   key: FilterEstado;
   label: string;
   value: number;
-  color: string;
-  bg: string;
-  border: string;
+  valueText: string;
+  inactiveBg: string;
+  inactiveBorder: string;
   activeBg: string;
   activeBorder: string;
 }
@@ -69,30 +70,30 @@ export function TableMap({ initialMesas }: TableMapProps) {
       key: null,
       label: 'Totales',
       value: rawStats.total,
-      color: 'text-gray-900',
-      bg: 'bg-gray-50',
-      border: 'border-gray-200',
-      activeBg: 'bg-gray-100',
+      valueText: 'text-text-primary',
+      inactiveBg: 'bg-card',
+      inactiveBorder: 'border-border/60',
+      activeBg: 'bg-accent/10',
       activeBorder: 'border-accent',
     },
     {
       key: 'disponible',
       label: 'Libres',
       value: rawStats.disponibles,
-      color: 'text-emerald-700',
-      bg: 'bg-emerald-50',
-      border: 'border-emerald-200',
-      activeBg: 'bg-emerald-100',
+      valueText: 'text-emerald-600',
+      inactiveBg: 'bg-card',
+      inactiveBorder: 'border-border/60',
+      activeBg: 'bg-emerald-500/10',
       activeBorder: 'border-emerald-500',
     },
     {
       key: 'ocupada',
       label: 'Ocupadas',
       value: rawStats.ocupadas,
-      color: 'text-rose-700',
-      bg: 'bg-rose-50',
-      border: 'border-rose-200',
-      activeBg: 'bg-rose-100',
+      valueText: 'text-rose-600',
+      inactiveBg: 'bg-card',
+      inactiveBorder: 'border-border/60',
+      activeBg: 'bg-rose-500/10',
       activeBorder: 'border-rose-500',
     },
   ], [rawStats]);
@@ -208,7 +209,7 @@ export function TableMap({ initialMesas }: TableMapProps) {
 
   if (mesas.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+      <div className="flex flex-col items-center justify-center py-16 text-muted">
         <UtensilsCrossed className="w-10 h-10 mb-3" />
         <p className="text-sm">No hay mesas registradas</p>
       </div>
@@ -219,18 +220,18 @@ export function TableMap({ initialMesas }: TableMapProps) {
     <div className="space-y-6">
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3">
-        {stats.map(({ key, label, value, color, bg, border, activeBg, activeBorder }) => {
+        {stats.map(({ key, label, value, valueText, inactiveBg, inactiveBorder, activeBg, activeBorder }) => {
           const isActive = filterEstado === key;
           return (
             <button
               key={label}
               onClick={() => toggleFilter(key)}
               className={`rounded-xl border-2 text-left p-3 sm:p-4 cursor-pointer transition-all duration-200
-                ${isActive ? `${activeBg} ${activeBorder}` : `${bg} ${border}`}
+                ${isActive ? `${activeBg} ${activeBorder}` : `${inactiveBg} ${inactiveBorder}`}
                 ${isActive ? 'shadow-sm' : 'hover:shadow-sm'}`}
             >
-              <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-              <p className={`text-xl sm:text-2xl font-bold ${color}`}>{value}</p>
+              <p className="text-xs text-muted mb-0.5">{label}</p>
+              <p className={`text-xl sm:text-2xl font-bold ${valueText}`}>{value}</p>
             </button>
           );
         })}
@@ -238,20 +239,20 @@ export function TableMap({ initialMesas }: TableMapProps) {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
         <input
           type="text"
           placeholder="Buscar mesa por número..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-accent/50"
+          className="w-full bg-card border border-border/60 rounded-xl pl-9 pr-4 py-2.5 text-sm text-body placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent/50"
         />
       </div>
 
       {/* Active filter indicator */}
       {filterEstado && (
-        <div className="flex items-center gap-2 text-xs text-gray-400">
-          <span>Filtrando por: <strong className="text-gray-700 capitalize">{filterEstado === 'disponible' ? 'Libres' : 'Ocupadas'}</strong></span>
+        <div className="flex items-center gap-2 text-xs text-muted">
+          <span>Filtrando por: <strong className="text-text-primary capitalize">{filterEstado === 'disponible' ? 'Libres' : 'Ocupadas'}</strong></span>
           <button
             onClick={() => setFilterEstado(null)}
             className="text-accent hover:text-accent-dark font-medium underline"
@@ -263,7 +264,7 @@ export function TableMap({ initialMesas }: TableMapProps) {
 
       {/* Zones */}
       {zonas.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+        <div className="flex flex-col items-center justify-center py-12 text-muted">
           <Search className="w-8 h-8 mb-2" />
           <p className="text-sm">No se encontraron mesas</p>
         </div>
@@ -272,12 +273,12 @@ export function TableMap({ initialMesas }: TableMapProps) {
           const mesasZona = mesasFiltradas.filter(m => (m.zona ?? 'sin_zona') === zona);
           return (
             <section key={zona}>
-              <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-2.5 mb-3">
+              <div className="flex items-center gap-2 bg-card border border-border/60 rounded-xl px-4 py-2.5 mb-3">
                 <MapPin className="w-4 h-4 text-accent" />
-                <h2 className="text-sm font-bold text-gray-800 capitalize">
+                <h2 className="text-sm font-bold text-text-primary capitalize">
                   {zona === 'sin_zona' ? 'General' : zona.replace('_', ' ')}
                 </h2>
-                <span className="text-xs text-gray-400 ml-auto">{mesasZona.length} mesas</span>
+                <span className="text-xs text-muted ml-auto">{mesasZona.length} mesas</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-[14px]">
                 {mesasZona.map(mesa => (
@@ -303,32 +304,41 @@ export function TableMap({ initialMesas }: TableMapProps) {
 
       {/* Abrir mesa modal */}
       {showAbrirModal && abrirMesaData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl border border-gray-200 w-full max-w-sm shadow-xl animate-in fade-in zoom-in-95">
-            <div className="px-6 pt-6 pb-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-card rounded-3xl border-2 border-border/60 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="bg-gradient-to-r from-accent/10 to-amber-400/10 px-6 pt-6 pb-5">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-gray-900">Abrir Mesa {abrirMesaData.numero}</h2>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center">
+                    <UserPlus className="w-5 h-5 text-accent" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-text-primary">Abrir Mesa {abrirMesaData.numero}</h2>
+                    <p className="text-xs text-muted mt-0.5">Ingresa los comensales</p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowAbrirModal(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-100"
+                  className="text-muted hover:text-body transition-colors p-1.5 rounded-lg hover:bg-bg-base"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
-            <div className="px-6 py-4 space-y-4">
+
+            <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-2">
+                <label className="block text-sm font-medium text-muted mb-2">
                   Número de comensales
                 </label>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setComensalesInput(Math.max(1, comensalesInput - 1))}
-                    className="w-10 h-10 rounded-xl bg-gray-100 text-gray-500 hover:text-gray-700 flex items-center justify-center transition-colors"
+                    className="w-10 h-10 rounded-xl bg-bg-base text-muted hover:text-body flex items-center justify-center transition-colors"
                   >
                     −
                   </button>
-                  <span className="w-12 text-center text-2xl font-bold text-gray-900 tabular-nums">
+                  <span className="w-12 text-center text-2xl font-bold text-text-primary tabular-nums">
                     {comensalesInput}
                   </span>
                   <button
@@ -339,13 +349,22 @@ export function TableMap({ initialMesas }: TableMapProps) {
                   </button>
                 </div>
               </div>
-              <button
-                onClick={handleAbrirMesa}
-                disabled={isSubmitting}
-                className="w-full rounded-xl bg-accent py-3 text-sm font-semibold text-white hover:bg-accent-dark transition-colors disabled:opacity-50"
-              >
-                {isSubmitting ? 'Abriendo mesa...' : 'Abrir mesa'}
-              </button>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => setShowAbrirModal(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1"
+                  loading={isSubmitting}
+                  onClick={handleAbrirMesa}
+                >
+                  {isSubmitting ? 'Abriendo...' : 'Abrir mesa'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

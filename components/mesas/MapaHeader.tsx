@@ -5,11 +5,11 @@ export function MapaHeader() {
     <div>
       <button
         onClick={() => { window.location.href = '/mesero'; }}
-        className="text-xs md:text-sm text-gray-400 hover:text-gray-700 transition-colors mb-1"
+        className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1"
       >
         ← Dashboard
       </button>
-      <h1 className="text-lg md:text-xl font-bold text-gray-900">Mapa de Mesas</h1>
+      <h1 className="text-lg md:text-xl font-bold text-text-primary">Mapa de Mesas</h1>
     </div>
   );
 }
