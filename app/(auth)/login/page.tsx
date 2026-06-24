@@ -59,6 +59,7 @@ export default function LoginPage() {
 
         const rol = perfil.rol as Rol;
 
+        console.log(rol)
         if (rol === 'super_admin' || rol === 'admin') {
             router.push('/admin');
             return;

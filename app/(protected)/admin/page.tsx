@@ -67,7 +67,25 @@ export default async function GlobalAdminPage() {
 
       {rol === 'super_admin' && (
         <div className="bg-card border-2 border-border-default rounded-2xl p-6">
-          <h2 className="text-lg font-semibold text-text-primary mb-4">Resumen General</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-text-primary">Resumen General</h2>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/admin/usuarios"
+                className="text-sm text-accent hover:underline flex items-center gap-1"
+              >
+                <Users className="w-4 h-4" />
+                Usuarios
+              </Link>
+              <Link
+                href="/admin/sucursales"
+                className="text-sm text-accent hover:underline flex items-center gap-1"
+              >
+                <Store className="w-4 h-4" />
+                Sucursales
+              </Link>
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex items-center gap-3 p-4 rounded-xl bg-bg-base">
               <Store className="w-5 h-5 text-accent" />

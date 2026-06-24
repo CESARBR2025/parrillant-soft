@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { Users, ClipboardList, CookingPot, Wine, CreditCard } from 'lucide-react';
+import { Users, ClipboardList, CookingPot, Wine, CreditCard, Table2 } from 'lucide-react';
 
 export default async function AdminPage({
   params,
@@ -49,12 +49,14 @@ export default async function AdminPage({
 
             <div className="bg-card rounded-2xl border-2 border-border-default p-6">
                 <h2 className="text-lg font-semibold text-text-primary mb-4">Acceso Rápido</h2>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
                     {[
                         { label: 'Cocina', href: `/${sucursalSlug}/cocina`, icon: CookingPot, color: 'text-yellow-400' },
                         { label: 'Barra', href: `/${sucursalSlug}/barra`, icon: Wine, color: 'text-purple-400' },
                         { label: 'Caja', href: `/${sucursalSlug}/caja`, icon: CreditCard, color: 'text-green-400' },
                         { label: 'Órdenes', href: `/${sucursalSlug}/mesero`, icon: ClipboardList, color: 'text-blue-400' },
+                        { label: 'Mesas', href: `/${sucursalSlug}/admin/mesas`, icon: Table2, color: 'text-gray-400' },
+                        { label: 'Usuarios', href: `/${sucursalSlug}/admin/usuarios`, icon: Users, color: 'text-gray-400' },
                     ].map(item => (
                         <a
                             key={item.href}
