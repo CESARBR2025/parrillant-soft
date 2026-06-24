@@ -6,8 +6,9 @@ import { PanelLeftClose, PanelLeft, ChevronDown } from 'lucide-react';
 import Image from 'next/image';
 import { useSession } from '@/components/providers/SessionProvider';
 import { useSucursal } from '@/components/providers/SucursalProvider';
-import { navItemsConSucursal } from '@/lib/navigation';
+import { navSectionsConSucursal, NAV_SECTIONS } from '@/lib/navigation';
 import type { Rol } from '@/types/roles';
+import type { NavSection } from '@/lib/navigation';
 import { RoleBadge } from './RoleBadge';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -26,10 +27,29 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   if (!rol) return null;
 
-  const itemsBase = navItemsConSucursal(rol as Rol, sucursal?.slug);
-  const navItems = !sucursal && (rol === 'super_admin' || rol === 'admin')
-    ? itemsBase.filter(i => i.href === '/admin' || i.href.startsWith('/admin/'))
-    : itemsBase;
+  const rawSections = NAV_SECTIONS[rol as Rol] ?? [];
+
+  let filteredSections: NavSection[];
+  if (!sucursal && (rol === 'super_admin' || rol === 'admin')) {
+    filteredSections = rawSections
+      .map(s => ({
+        ...s,
+        items: s.items.filter(i => i.href === '/admin' || i.href.startsWith('/admin/')),
+      }))
+      .filter(s => s.items.length > 0);
+  } else if (sucursal && (rol === 'super_admin' || rol === 'admin')) {
+    const globalOnlyHrefs = ['/admin/sucursales'];
+    filteredSections = rawSections
+      .map(s => ({
+        ...s,
+        items: s.items.filter(i => !globalOnlyHrefs.includes(i.href)),
+      }))
+      .filter(s => s.items.length > 0);
+  } else {
+    filteredSections = rawSections;
+  }
+
+  const sections = navSectionsConSucursal(filteredSections, sucursal?.slug);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -82,26 +102,37 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         )}
       </div>
 
-      <nav className="flex-1 py-6 px-2 space-y-2 overflow-y-auto">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-accent/15 text-accent'
-                  : 'text-muted hover:text-body hover:bg-bg-base'
-              } ${collapsed ? 'justify-center' : ''}`}
-              title={collapsed ? item.label : undefined}
-            >
-              <Icon className="w-6 h-6 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 py-5 px-2 overflow-y-auto">
+        {sections.map((section) => (
+          <div key={section.label} className="mb-5 last:mb-0">
+            {!collapsed && section.label && (
+              <p className="px-3 pb-1.5 text-[11px] font-semibold text-muted uppercase tracking-wider">
+                {section.label}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-accent/15 text-accent'
+                        : 'text-muted hover:text-body hover:bg-bg-base'
+                    } ${collapsed ? 'justify-center' : ''}`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <Icon className="w-6 h-6 shrink-0" />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {!collapsed && (
