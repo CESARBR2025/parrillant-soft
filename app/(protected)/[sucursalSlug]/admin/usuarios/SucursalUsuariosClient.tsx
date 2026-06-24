@@ -55,6 +55,7 @@ export function SucursalUsuariosClient({
       toast.error(result.error);
     } else {
       setShowAgregar(false);
+      toast.success('Usuario asignado a la sucursal');
       router.refresh();
     }
   };
@@ -67,6 +68,7 @@ export function SucursalUsuariosClient({
     if (result.error) {
       toast.error(result.error);
     } else {
+      toast.success('Usuario removido de la sucursal');
       router.refresh();
     }
   };

@@ -69,7 +69,7 @@ export function AdminUsuariosClient({
     if (!email.trim() || !password.trim() || !nombre.trim()) return;
     setIsSubmitting(true);
     const result = await crearUsuario({
-      email: email.trim(),
+      email: `${email.trim()}@parrilla.com`,
       password,
       nombre: nombre.trim(),
       rol,
@@ -271,13 +271,16 @@ export function AdminUsuariosClient({
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-xs text-muted mb-1">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body"
-                  placeholder="usuario@correo.com"
-                />
+                <div className="flex items-center bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body">
+                  <input
+                    type="text"
+                    value={email}
+                    onChange={e => setEmail(e.target.value.replace(/[^a-z0-9._-]/g, ''))}
+                    className="flex-1 bg-transparent outline-none text-body"
+                    placeholder="usuario"
+                  />
+                  <span className="text-muted shrink-0">@parrilla.com</span>
+                </div>
               </div>
               <div>
                 <label className="block text-xs text-muted mb-1">Contraseña</label>
