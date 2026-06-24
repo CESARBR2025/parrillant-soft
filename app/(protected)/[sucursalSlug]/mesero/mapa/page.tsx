@@ -1,22 +1,33 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalId } from '@/lib/sucursal';
 import { TableMap } from '@/components/mesas/TableMap';
 import { MapaHeader } from '@/components/mesas/MapaHeader';
 
-export default async function MapaPage() {
+export default async function MapaPage({
+  params,
+}: {
+  params: Promise<{ sucursalSlug: string }>;
+}) {
+  const { sucursalSlug } = await params;
   const supabase = await createServerSupabaseClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
+  const sucursalId = await getServerSucursalId();
+  if (!sucursalId) redirect(`/${sucursalSlug}/mesero`);
+
   const { data: mesas } = await supabase
     .from('mesas')
     .select('id, numero, zona, capacidad, estado')
+    .eq('sucursal_id', sucursalId)
     .order('numero');
 
   const { data: ordenesActivas } = await supabase
     .from('ordenes')
     .select('id, mesa_id, created_at, estado, comensales, orden_padre_id')
+    .eq('sucursal_id', sucursalId)
     .in('estado', ['pendiente', 'en_preparacion', 'listo', 'entregado', 'cuenta_solicitada']);
 
   const ordenesPorMesa = new Map<number, { id: number; created_at: string; orden_estado: string; comensales: number | null }>();

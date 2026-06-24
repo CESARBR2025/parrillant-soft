@@ -1,4 +1,3 @@
-// src/lib/types/roles.ts
 export type Rol =
   | "super_admin"
   | "admin"
@@ -6,6 +5,12 @@ export type Rol =
   | "mesero"
   | "barra"
   | "cocina";
+
+export interface Sucursal {
+  id: string;
+  slug: string;
+  nombre: string;
+}
 
 export interface Perfil {
   id: string;

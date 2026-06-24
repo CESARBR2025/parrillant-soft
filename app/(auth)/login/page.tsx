@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Mail, Lock, LogIn, Loader2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, LogIn, Loader2, AlertCircle, Store } from 'lucide-react';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
-import type { Rol } from '@/types/roles';
+import type { Rol, Sucursal } from '@/types/roles';
 import { RUTA_INICIO_POR_ROL } from '@/types/roles';
 
 export default function LoginPage() {
@@ -15,6 +15,18 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    const [sucursales, setSucursales] = useState<Sucursal[]>([]);
+    const [selectedSucursal, setSelectedSucursal] = useState<string | null>(null);
+    const [userRol, setUserRol] = useState<Rol | null>(null);
+    const [step, setStep] = useState<'login' | 'sucursal'>('login');
+
+    useEffect(() => {
+        if (step === 'sucursal' && sucursales.length === 1) {
+            const ruta = RUTA_INICIO_POR_ROL[userRol!] ?? '/mesero';
+            router.push(`/${sucursales[0].slug}${ruta}`);
+        }
+    }, [step, sucursales, userRol, router]);
 
     async function handleLogin(e: React.FormEvent) {
         e.preventDefault();
@@ -45,8 +57,84 @@ export default function LoginPage() {
             return;
         }
 
-        const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol] ?? '/';
-        router.push(rutaInicio);
+        const rol = perfil.rol as Rol;
+
+        if (rol === 'super_admin' || rol === 'admin') {
+            router.push('/admin');
+            return;
+        }
+
+        const { data: userSucursales } = await supabase
+            .from('usuario_sucursales')
+            .select('sucursales!inner(id, slug, nombre)');
+
+        const sucs = (userSucursales ?? []).map(s => s.sucursales as unknown as Sucursal);
+
+        if (sucs.length === 0) {
+            await supabase.auth.signOut();
+            setError('No tienes sucursales asignadas. Contacta al administrador.');
+            setLoading(false);
+            return;
+        }
+
+        setSucursales(sucs);
+        setUserRol(rol);
+        setStep('sucursal');
+        setLoading(false);
+    }
+
+    function handleSelectSucursal(slug: string) {
+        setSelectedSucursal(slug);
+        const ruta = RUTA_INICIO_POR_ROL[userRol!] ?? '/mesero';
+        router.push(`/${slug}${ruta}`);
+    }
+
+    if (step === 'sucursal') {
+        return (
+            <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-accent-light via-bg-app to-bg-app">
+                <div className="w-full max-w-sm">
+                    <div className="text-center mb-10">
+                        <Image
+                            src="/parrillalogo.png"
+                            alt="Parrilla Norteña Soft"
+                            width={120}
+                            height={120}
+                            priority
+                            unoptimized
+                            className="mx-auto mb-4 drop-shadow-[0_0_30px_rgba(249,115,22,0.15)]"
+                        />
+                        <h1 className="text-2xl font-bold tracking-tight">
+                            <span className="text-text-primary">Selecciona </span>
+                            <span className="bg-gradient-to-r from-accent to-amber-400 bg-clip-text text-transparent">
+                                Sucursal
+                            </span>
+                        </h1>
+                    </div>
+
+                    <div className="space-y-3">
+                        {sucursales.map(s => (
+                            <button
+                                key={s.id}
+                                onClick={() => handleSelectSucursal(s.slug)}
+                                disabled={selectedSucursal === s.slug}
+                                className="w-full bg-bg-card rounded-2xl border-2 border-border-default p-5 
+                                    hover:border-accent/50 hover:bg-accent/5 transition-all
+                                    disabled:opacity-50 disabled:cursor-not-allowed
+                                    flex items-center gap-4 text-left"
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                                    <Store className="w-6 h-6 text-accent" />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-text-primary">{s.nombre}</p>
+                                    <p className="text-xs text-muted">{s.slug}</p>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </main>
+        );
     }
 
     return (

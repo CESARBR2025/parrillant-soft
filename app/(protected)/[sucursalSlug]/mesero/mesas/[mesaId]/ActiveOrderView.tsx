@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/Badge';
+import { useSucursal } from '@/components/providers/SucursalProvider';
 import { servirCategoria } from '@/app/actions/servirCategoria';
 import { solicitarCuenta } from '@/app/actions/solicitarCuenta';
 import { UtensilsCrossed, Wine, Check } from 'lucide-react';
@@ -268,6 +269,7 @@ export function ActiveOrderView({
   subOrdenes: Orden[];
 }) {
   const router = useRouter();
+  const sucursal = useSucursal();
   const [padre, setPadre] = useState<Orden>(padreInicial);
   const [subOrdenes, setSubOrdenes] = useState<Orden[]>(subsIniciales);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
@@ -362,7 +364,7 @@ export function ActiveOrderView({
       <div className="flex items-center justify-between">
         <div>
           <button
-            onClick={() => router.push('/mesero/mapa')}
+            onClick={() => router.push(`/${sucursal?.slug}/mesero/mapa`)}
             className="text-sm text-gray-400 hover:text-gray-700 transition-colors mb-1"
           >
             ← Mapa de Mesas
@@ -408,7 +410,7 @@ export function ActiveOrderView({
       <div className="flex flex-col gap-3">
         {(padre.estado === 'pendiente' || padre.estado === 'en_preparacion' || padre.estado === 'entregado') && (
           <button
-            onClick={() => router.push(`/mesero/mesas/${mesa.id}/nueva?ordenId=${padre.id}`)}
+            onClick={() => router.push(`/${sucursal?.slug}/mesero/mesas/${mesa.id}/nueva?ordenId=${padre.id}`)}
             className="w-full rounded-xl bg-accent text-white px-4 py-3 text-sm font-medium hover:bg-accent-dark transition-colors"
           >
             + Agregar ítems

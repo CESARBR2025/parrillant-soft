@@ -16,6 +16,15 @@ export interface NavItem {
   icon: LucideIcon;
 }
 
+export function navItemsConSucursal(rol: Rol, sucursalSlug?: string): NavItem[] {
+  const items = NAV_ITEMS[rol] ?? [];
+  if (!sucursalSlug) return items;
+  return items.map(item => ({
+    ...item,
+    href: `/${sucursalSlug}${item.href}`,
+  }));
+}
+
 export const NAV_ITEMS: Record<Rol, NavItem[]> = {
   super_admin: [
     { label: 'Panel', href: '/admin', icon: LayoutDashboard },

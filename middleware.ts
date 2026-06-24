@@ -1,94 +1,96 @@
-// src/middleware.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createMiddlewareSupabaseClient } from "@/lib/supabase/middleware";
 import type { Rol } from "./types/roles";
 import { RUTA_INICIO_POR_ROL } from "./types/roles";
 
-// Rutas que NO requieren autenticación
 const RUTAS_PUBLICAS = ["/login", "/auth/callback"];
 
-// Rutas protegidas y el rol mínimo requerido
 const RUTAS_PROTEGIDAS: Array<{ patron: RegExp; rolesPermitidos: Rol[] }> = [
-  { patron: /^\/admin/, rolesPermitidos: ["super_admin", "admin"] },
-  { patron: /^\/caja/, rolesPermitidos: ["super_admin", "admin", "caja"] },
-  { patron: /^\/mesero/, rolesPermitidos: ["super_admin", "admin", "mesero"] },
-  { patron: /^\/cocina/, rolesPermitidos: ["super_admin", "admin", "cocina"] },
-  { patron: /^\/barra/, rolesPermitidos: ["super_admin", "admin", "barra"] },
+  { patron: /^\/admin(?:\/|$)/, rolesPermitidos: ["super_admin", "admin"] },
+  { patron: /^\/caja(?:\/|$)/, rolesPermitidos: ["super_admin", "admin", "caja"] },
+  { patron: /^\/mesero(?:\/|$)/, rolesPermitidos: ["super_admin", "admin", "mesero"] },
+  { patron: /^\/cocina(?:\/|$)/, rolesPermitidos: ["super_admin", "admin", "cocina"] },
+  { patron: /^\/barra(?:\/|$)/, rolesPermitidos: ["super_admin", "admin", "barra"] },
 ];
 
+const SUCURSALES_CONOCIDAS = ['sucursal-lomas', 'sucursal-nogales'];
+
+function extractSegments(pathname: string): { sucursalSlug?: string; internalPath: string } {
+  const parts = pathname.split('/').filter(Boolean);
+  const first = parts[0] ?? '';
+  if (SUCURSALES_CONOCIDAS.includes(first)) {
+    return { sucursalSlug: first, internalPath: '/' + parts.slice(1).join('/') };
+  }
+  return { internalPath: pathname };
+}
+
 export async function middleware(request: NextRequest) {
-  console.log("entro a middleware");
   const { pathname } = request.nextUrl;
   const response = NextResponse.next();
 
-  // Crear cliente Supabase para el middleware
-  const supabase = createMiddlewareSupabaseClient(request, response);
-
-  // CRÍTICO: Siempre llamar getUser() para refrescar el token si es necesario
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  console.log("USUARIO => ", user);
-
-  // Ruta pública: dejar pasar
-  if (RUTAS_PUBLICAS.some((ruta) => pathname.startsWith(ruta))) {
-    // Si ya está autenticado y va al login, redirigir a su dashboard
-    if (user && pathname === "/login") {
-      const { data: perfil } = await supabase
-        .from("perfiles")
-        .select("rol")
-        .eq("id", user.id)
-        .single();
-
-      if (perfil) {
-        const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol];
-        return NextResponse.redirect(new URL(rutaInicio, request.url));
-      }
-    }
+  if (RUTAS_PUBLICAS.some(r => pathname.startsWith(r))) {
     return response;
   }
 
-  // Sin sesión: redirigir al login
+  const supabase = createMiddlewareSupabaseClient(request, response);
+
+  const { data: { user }, error } = await supabase.auth.getUser();
+
   if (!user || error) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Verificar rol para rutas protegidas
-  const rutaProtegida = RUTAS_PROTEGIDAS.find((r) => r.patron.test(pathname));
+  const { sucursalSlug, internalPath } = extractSegments(pathname);
 
-  if (rutaProtegida) {
-    const { data: perfil, error: perfilError } = await supabase
+  if (sucursalSlug) {
+    const { data: sucursal } = await supabase
+      .from("sucursales")
+      .select("id")
+      .eq("slug", sucursalSlug)
+      .single();
+
+    if (!sucursal) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    const { data: perfil } = await supabase
       .from("perfiles")
       .select("rol, activo")
       .eq("id", user.id)
       .single();
 
-    console.log(perfil);
-    console.log("USER ID:", user.id);
-    console.log("PERFIL:", perfil);
-    console.log("ERROR PERFIL:", perfilError);
-    // Usuario inactivo o sin perfil
     if (!perfil || !perfil.activo) {
-      return NextResponse.redirect(
-        new URL("/login?error=cuenta_inactiva", request.url),
-      );
+      return NextResponse.redirect(new URL("/login?error=cuenta_inactiva", request.url));
     }
 
-    const rolUsuario = perfil.rol as Rol;
+    const esAdmin = perfil.rol === 'super_admin' || perfil.rol === 'admin';
+    if (!esAdmin) {
+      const { data: acceso } = await supabase
+        .from("usuario_sucursales")
+        .select("sucursal_id")
+        .eq("usuario_id", user.id)
+        .eq("sucursal_id", sucursal.id)
+        .maybeSingle();
 
-    // Verificar si el rol tiene acceso a esta ruta
-    if (!rutaProtegida.rolesPermitidos.includes(rolUsuario)) {
-      // Redirigir a su propia ruta de inicio (no mostrar 403 vacío)
-      const rutaInicio = RUTA_INICIO_POR_ROL[rolUsuario];
-      return NextResponse.redirect(new URL(rutaInicio, request.url));
+      if (!acceso) {
+        return NextResponse.redirect(new URL("/login", request.url));
+      }
     }
+
+    response.cookies.set("sucursal_slug", sucursalSlug, { path: "/" });
+    response.cookies.set("sucursal_id", sucursal.id, { path: "/", httpOnly: true });
+
+    const rutaProtegida = RUTAS_PROTEGIDAS.find(r => r.patron.test(internalPath));
+    if (rutaProtegida && !rutaProtegida.rolesPermitidos.includes(perfil.rol as Rol)) {
+      const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol] ?? '/mesero';
+      return NextResponse.redirect(new URL(`/${sucursalSlug}${rutaInicio}`, request.url));
+    }
+
+    return response;
   }
 
-  // Usuario autenticado en la raíz → redirigir a su dashboard según rol
   if (pathname === "/") {
     const { data: perfil } = await supabase
       .from("perfiles")
@@ -97,8 +99,43 @@ export async function middleware(request: NextRequest) {
       .single();
 
     if (perfil) {
-      const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol];
+      const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol] ?? '/mesero';
       return NextResponse.redirect(new URL(rutaInicio, request.url));
+    }
+  }
+
+  const rutaProtegida = RUTAS_PROTEGIDAS.find(r => r.patron.test(pathname));
+  if (rutaProtegida) {
+    const { data: perfil } = await supabase
+      .from("perfiles")
+      .select("rol, activo")
+      .eq("id", user.id)
+      .single();
+
+    if (!perfil || !perfil.activo) {
+      return NextResponse.redirect(new URL("/login?error=cuenta_inactiva", request.url));
+    }
+
+    if (!rutaProtegida.rolesPermitidos.includes(perfil.rol as Rol)) {
+      const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol] ?? '/mesero';
+
+      if (perfil.rol === 'super_admin' || perfil.rol === 'admin') {
+        return NextResponse.redirect(new URL(rutaInicio, request.url));
+      }
+
+      const { data: userSuc } = await supabase
+        .from("usuario_sucursales")
+        .select("sucursales!inner(slug)")
+        .eq("usuario_id", user.id)
+        .limit(1)
+        .single();
+
+      const slug = (userSuc as unknown as { sucursales: { slug: string } })?.sucursales?.slug;
+      if (slug) {
+        return NextResponse.redirect(new URL(`/${slug}${rutaInicio}`, request.url));
+      }
+
+      return NextResponse.redirect(new URL("/login", request.url));
     }
   }
 
@@ -107,10 +144,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Excluir archivos estáticos y rutas de Next.js internos
-     * Solo ejecutar en rutas de página
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?|css|js)$|api/).*)",
   ],
 };

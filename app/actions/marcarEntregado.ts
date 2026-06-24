@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalSlug } from '@/lib/sucursal';
 
 export async function marcarEntregado(orden_id: number) {
   const supabase = await createServerSupabaseClient();
@@ -38,7 +39,8 @@ export async function marcarEntregado(orden_id: number) {
     return { error: error.message };
   }
 
-  revalidatePath('/mesero');
+  const slug = await getServerSucursalSlug();
+  revalidatePath(`/${slug}/mesero`);
 
   return { success: true };
 }

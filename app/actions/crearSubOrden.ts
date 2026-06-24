@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalId, getServerSucursalSlug } from '@/lib/sucursal';
 
 interface ItemSub {
   producto_id: number;
@@ -26,6 +27,10 @@ export async function crearSubOrden(
     return { error: 'La orden debe tener al menos un ítem' };
   }
 
+  const sucursalId = await getServerSucursalId();
+  const slug = await getServerSucursalSlug();
+  if (!sucursalId || !slug) return { error: 'Sucursal no encontrada' };
+
   const { data: padre } = await supabase
     .from('ordenes')
     .select('id, mesa_id, estado')
@@ -47,6 +52,7 @@ export async function crearSubOrden(
       mesero_id: user.id,
       estado: 'en_preparacion',
       orden_padre_id,
+      sucursal_id: sucursalId,
     })
     .select()
     .single();
@@ -64,7 +70,7 @@ export async function crearSubOrden(
     precio_unitario: item.precio_unitario,
   }));
 
-  const { error: detallesError } = await supabase
+  const { error: detallesError } = await (supabase as any)
     .from('detalles_orden')
     .insert(detalles);
 
@@ -73,7 +79,7 @@ export async function crearSubOrden(
     return { error: detallesError.message };
   }
 
-  revalidatePath('/mesero');
+  revalidatePath(`/${slug}/mesero`);
 
   return { success: true, ordenId: orden.id };
 }

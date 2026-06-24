@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { CreditCard, Clock } from 'lucide-react'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
+import { useSucursal } from '@/components/providers/SucursalProvider'
 import type { Database } from '@/types/database.types'
 
 type OrdenRow = Database['public']['Tables']['ordenes']['Row']
@@ -33,6 +34,7 @@ interface OrdenConSubs {
 export default function CajaPage() {
   const router = useRouter()
   const supabase = createClientSupabaseClient()
+  const sucursal = useSucursal()
   const [ordenes, setOrdenes] = useState<OrdenConSubs[]>([])
   const [resumen, setResumen] = useState({ totalVentas: 0, ordenesCerradas: 0 })
   const [loading, setLoading] = useState(true)
@@ -193,7 +195,7 @@ export default function CajaPage() {
               <button
                 key={orden.id}
                 onClick={() =>
-                  router.push(`/caja/ordenes/${orden.id}/cobrar`)
+                  router.push(`/${sucursal?.slug}/caja/ordenes/${orden.id}/cobrar`)
                 }
                 className="bg-card rounded-2xl border-2 border-border/60 p-5 text-left hover:border-accent/50 transition-all group"
               >

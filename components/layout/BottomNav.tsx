@@ -3,16 +3,21 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from '@/components/providers/SessionProvider';
-import { NAV_ITEMS } from '@/lib/navigation';
+import { useSucursal } from '@/components/providers/SucursalProvider';
+import { navItemsConSucursal } from '@/lib/navigation';
 import type { Rol } from '@/types/roles';
 
 export function BottomNav() {
   const pathname = usePathname();
   const { rol } = useSession();
+  const sucursal = useSucursal();
 
   if (!rol) return null;
 
-  const navItems = NAV_ITEMS[rol as Rol] ?? [];
+  const itemsBase = navItemsConSucursal(rol as Rol, sucursal?.slug);
+  const navItems = !sucursal && (rol === 'super_admin' || rol === 'admin')
+    ? itemsBase.filter(i => i.href === '/admin' || i.href.startsWith('/admin/'))
+    : itemsBase;
   if (navItems.length <= 1) return null;
 
   return (

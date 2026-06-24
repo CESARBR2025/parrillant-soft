@@ -1,10 +1,14 @@
 'use client';
 
+import { useSucursal } from '@/components/providers/SucursalProvider';
+
 export function MapaHeader() {
+  const sucursal = useSucursal();
+
   return (
     <div>
       <button
-        onClick={() => { window.location.href = '/mesero'; }}
+        onClick={() => { window.location.href = `/${sucursal?.slug}/mesero`; }}
         className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1"
       >
         ← Dashboard

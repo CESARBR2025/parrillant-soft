@@ -2,7 +2,12 @@ import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { OrderHistoryView } from './OrderHistoryView';
 
-export default async function OrdenesPage() {
+export default async function OrdenesPage({
+  params,
+}: {
+  params: Promise<{ sucursalSlug: string }>;
+}) {
+  const { sucursalSlug } = await params;
   const supabase = await createServerSupabaseClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -32,5 +37,5 @@ export default async function OrdenesPage() {
     .gte('created_at', hoy.toISOString())
     .order('created_at', { ascending: false });
 
-  return <OrderHistoryView ordenes={ordenes ?? []} />;
+  return <OrderHistoryView ordenes={(ordenes ?? []) as unknown as Parameters<typeof OrderHistoryView>[0]['ordenes']} />;
 }

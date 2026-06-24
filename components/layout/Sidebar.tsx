@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import { PanelLeftClose, PanelLeft, ChevronDown } from 'lucide-react';
 import Image from 'next/image';
 import { useSession } from '@/components/providers/SessionProvider';
-import { NAV_ITEMS } from '@/lib/navigation';
+import { useSucursal } from '@/components/providers/SucursalProvider';
+import { navItemsConSucursal } from '@/lib/navigation';
 import type { Rol } from '@/types/roles';
 import { RoleBadge } from './RoleBadge';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
@@ -19,12 +20,16 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { perfil, rol } = useSession();
+  const sucursal = useSucursal();
   const router = useRouter();
   const supabase = createClientSupabaseClient();
 
   if (!rol) return null;
 
-  const navItems = NAV_ITEMS[rol as Rol] ?? [];
+  const itemsBase = navItemsConSucursal(rol as Rol, sucursal?.slug);
+  const navItems = !sucursal && (rol === 'super_admin' || rol === 'admin')
+    ? itemsBase.filter(i => i.href === '/admin' || i.href.startsWith('/admin/'))
+    : itemsBase;
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -38,7 +43,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         collapsed ? 'w-16' : 'w-64'
       }`}
     >
-      {/* Toggle button overlapping right edge */}
       <button
         onClick={onToggle}
         className={`absolute top-5 -right-3 z-10 p-1.5 rounded-full bg-bg-sidebar border border-[#F6F6F6] text-muted hover:text-body hover:bg-bg-base transition-colors shadow-sm ${
@@ -48,7 +52,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       >
         <PanelLeft className="w-4 h-4" />
       </button>
-      {/* Logo + toggle */}
       <div className={`flex items-center h-20 px-3 border-b-2 border-[#F6F6F6] ${collapsed ? 'justify-center' : 'gap-3'}`}>
         <Image
           src="/parrillalogo.png"
@@ -60,9 +63,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         />
         {!collapsed && (
           <>
-            <span className="text-sm font-bold text-text-primary truncate">
-              Parrilla <span className="text-accent">Norteña</span>
-            </span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-bold text-text-primary truncate">
+                Parrilla <span className="text-accent">Norteña</span>
+              </span>
+              {sucursal && (
+                <span className="text-xs text-muted truncate">{sucursal.nombre}</span>
+              )}
+            </div>
             <button
               onClick={onToggle}
               className="ml-auto p-1.5 rounded-lg text-muted hover:text-body hover:bg-bg-base transition-colors"
@@ -74,7 +82,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         )}
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 py-6 px-2 space-y-2 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -97,7 +104,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         })}
       </nav>
 
-      {/* User footer */}
       {!collapsed && (
         <div className="p-4 border-t-2 border-[#F6F6F6]">
           <div className="flex items-center gap-3">

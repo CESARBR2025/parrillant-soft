@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalSlug } from '@/lib/sucursal';
 
 export async function marcarOrdenLista(ordenId: number) {
   const supabase = await createServerSupabaseClient();
@@ -44,7 +45,7 @@ export async function marcarOrdenLista(ordenId: number) {
     updateFilters.tipo = tipoEstacion;
   }
 
-  const { error: detallesError } = await supabase
+  const { error: detallesError } = await (supabase as any)
     .from('detalles_orden')
     .update({ listo: true })
     .match(updateFilters);
@@ -52,7 +53,7 @@ export async function marcarOrdenLista(ordenId: number) {
   if (detallesError) return { error: detallesError.message };
 
   // Verificar si TODOS los items de la orden están listos
-  const { data: pendientes } = await supabase
+  const { data: pendientes } = await (supabase as any)
     .from('detalles_orden')
     .select('id')
     .eq('orden_id', ordenId)
@@ -69,9 +70,10 @@ export async function marcarOrdenLista(ordenId: number) {
     if (error) return { error: error.message };
   }
 
-  revalidatePath('/cocina');
-  revalidatePath('/barra');
-  revalidatePath('/mesero');
+  const slug = await getServerSucursalSlug();
+  revalidatePath(`/${slug}/cocina`);
+  revalidatePath(`/${slug}/barra`);
+  revalidatePath(`/${slug}/mesero`);
 
   return { success: true };
 }

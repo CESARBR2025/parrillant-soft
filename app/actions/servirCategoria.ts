@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalSlug } from '@/lib/sucursal';
 
 export async function servirCategoria(
   ordenId: number,
@@ -30,7 +31,7 @@ export async function servirCategoria(
   }
 
   // Mark items of this tipo (and ronda if specified) as served
-  let markQuery = supabase
+  let markQuery = (supabase as any)
     .from('detalles_orden')
     .update({ servido: true })
     .eq('orden_id', ordenId)
@@ -48,7 +49,7 @@ export async function servirCategoria(
   }
 
   // Check if all items in the order are served
-  const { data: remaining, error: remainingError } = await supabase
+  const { data: remaining, error: remainingError } = await (supabase as any)
     .from('detalles_orden')
     .select('id')
     .eq('orden_id', ordenId)
@@ -72,8 +73,9 @@ export async function servirCategoria(
       .eq('id', ordenId);
   }
 
-  revalidatePath('/mesero');
-  revalidatePath('/barra');
+  const slug = await getServerSucursalSlug();
+  revalidatePath(`/${slug}/mesero`);
+  revalidatePath(`/${slug}/barra`);
 
   return { success: true };
 }

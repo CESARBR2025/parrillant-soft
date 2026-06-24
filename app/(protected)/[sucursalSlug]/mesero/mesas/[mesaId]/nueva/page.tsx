@@ -6,10 +6,10 @@ export default async function NuevaOrdenPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ mesaId: string }>;
+  params: Promise<{ mesaId: string; sucursalSlug: string }>;
   searchParams: Promise<{ ordenId?: string; comensales?: string }>;
 }) {
-  const { mesaId } = await params;
+  const { mesaId, sucursalSlug } = await params;
   const { ordenId, comensales } = await searchParams;
   const supabase = await createServerSupabaseClient();
 
@@ -22,7 +22,7 @@ export default async function NuevaOrdenPage({
     .eq('id', Number(mesaId))
     .single();
 
-  if (!mesa) redirect('/mesero');
+  if (!mesa) redirect(`/${sucursalSlug}/mesero`);
 
   const { data: categorias } = await supabase
     .from('categorias')

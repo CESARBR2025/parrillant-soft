@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalId, getServerSucursalSlug } from '@/lib/sucursal';
 
 interface ItemCrear {
   producto_id: number;
@@ -28,6 +29,10 @@ export async function crearOrden(
     return { error: 'La orden debe tener al menos un ítem' };
   }
 
+  const sucursalId = await getServerSucursalId();
+  const slug = await getServerSucursalSlug();
+  if (!sucursalId || !slug) return { error: 'Sucursal no encontrada' };
+
   // Crear la orden
   const { data: orden, error: ordenError } = await supabase
     .from('ordenes')
@@ -37,6 +42,7 @@ export async function crearOrden(
       notas,
       estado: 'en_preparacion',
       comensales: comensales ?? null,
+      sucursal_id: sucursalId,
     })
     .select()
     .single();
@@ -55,7 +61,7 @@ export async function crearOrden(
     precio_unitario: item.precio_unitario,
   }));
 
-  const { error: detallesError } = await supabase
+  const { error: detallesError } = await (supabase as any)
     .from('detalles_orden')
     .insert(detalles);
 
@@ -71,7 +77,7 @@ export async function crearOrden(
     .update({ estado: 'ocupada' })
     .eq('id', mesa_id);
 
-  revalidatePath('/mesero');
+  revalidatePath(`/${slug}/mesero`);
 
   return { success: true, ordenId: orden.id };
 }

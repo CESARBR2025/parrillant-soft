@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
+import { useSucursal } from '@/components/providers/SucursalProvider';
 import { TableCard } from './TableCard';
 import { Search, MapPin, UtensilsCrossed, X, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -50,6 +51,7 @@ interface StatDef {
 
 export function TableMap({ initialMesas }: TableMapProps) {
   const router = useRouter();
+  const sucursal = useSucursal();
   const [mesas, setMesas] = useState<MesaConOrden[]>(initialMesas);
   const [, setNow] = useState(() => Date.now());
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,11 +110,11 @@ export function TableMap({ initialMesas }: TableMapProps) {
       setComensalesInput(2);
       setShowAbrirModal(true);
     } else if (mesa.orden_estado === 'pendiente') {
-      router.push(`/mesero/mesas/${mesa.id}/nueva?ordenId=${mesa.orden_activa_id}`);
+      router.push(`/${sucursal?.slug}/mesero/mesas/${mesa.id}/nueva?ordenId=${mesa.orden_activa_id}`);
     } else if (mesa.orden_activa_id) {
-      router.push(`/mesero/mesas/${mesa.id}`);
+      router.push(`/${sucursal?.slug}/mesero/mesas/${mesa.id}`);
     }
-  }, [router]);
+  }, [router, sucursal?.slug]);
 
   const handleAbrirMesa = useCallback(async () => {
     if (!abrirMesaData) return;
@@ -123,9 +125,9 @@ export function TableMap({ initialMesas }: TableMapProps) {
     if (result.error) {
       alert(result.error);
     } else {
-      router.push(`/mesero/mesas/${abrirMesaData.id}/nueva?comensales=${comensalesInput}`);
+      router.push(`/${sucursal?.slug}/mesero/mesas/${abrirMesaData.id}/nueva?comensales=${comensalesInput}`);
     }
-  }, [abrirMesaData, comensalesInput, router]);
+  }, [abrirMesaData, comensalesInput, router, sucursal?.slug]);
 
   useEffect(() => {
     const supabase = createClientSupabaseClient();

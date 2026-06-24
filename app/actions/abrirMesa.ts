@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalSlug } from '@/lib/sucursal';
 
 export async function abrirMesa(mesa_id: number, comensales: number) {
   const supabase = await createServerSupabaseClient();
@@ -20,7 +21,8 @@ export async function abrirMesa(mesa_id: number, comensales: number) {
     .update({ estado: 'ocupada' })
     .eq('id', mesa_id);
 
-  revalidatePath('/mesero');
+  const slug = await getServerSucursalSlug();
+  revalidatePath(`/${slug}/mesero`);
 
   return { success: true };
 }

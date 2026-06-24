@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useSucursal } from '@/components/providers/SucursalProvider';
 import { Plus, Minus, ShoppingCart, X, ChevronRight, UtensilsCrossed, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -31,6 +32,7 @@ interface CartItem {
 
 export function NewOrderView({ mesa, categorias, productos, ordenExistente, comensales }: NewOrderViewProps) {
   const router = useRouter();
+  const sucursal = useSucursal();
   const [selectedCategoriaId, setSelectedCategoriaId] = useState<number | null>(
     categorias[0]?.id ?? null,
   );
@@ -139,7 +141,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente, come
         toast.error(result.error);
       } else {
         toast.success('Ítems agregados a la orden');
-        router.replace(`/mesero/mesas/${mesa.id}`);
+        router.replace(`/${sucursal?.slug}/mesero/mesas/${mesa.id}`);
       }
     } else {
       const result = await crearOrden(
@@ -156,10 +158,10 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente, come
         toast.error(result.error);
       } else {
         toast.success('Orden enviada a cocina/barra');
-        router.replace('/mesero/mapa');
+        router.replace(`/${sucursal?.slug}/mesero/mapa`);
       }
     }
-  }, [cart, notaGeneral, mesa.id, ordenExistente, router]);
+  }, [cart, notaGeneral, mesa.id, ordenExistente, router, sucursal?.slug]);
 
   // Scroll selected category into view
   useEffect(() => {
@@ -251,8 +253,8 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente, come
             <button
               onClick={() => {
                 const destino = ordenExistente && ordenExistente.estado !== 'pendiente'
-                  ? `/mesero/mesas/${mesa.id}`
-                  : '/mesero/mapa';
+                  ? `/${sucursal?.slug}/mesero/mesas/${mesa.id}`
+                  : `/${sucursal?.slug}/mesero/mapa`;
                 window.location.href = destino;
               }}
               className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1"

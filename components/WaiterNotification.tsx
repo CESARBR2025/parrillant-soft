@@ -3,25 +3,28 @@
 import { useEffect, useRef } from 'react';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { useSession } from '@/hooks/useSession';
+import { useSucursal } from '@/components/providers/SucursalProvider';
 import { useSound } from '@/hooks/useSound';
 
 export function WaiterNotification() {
   const { rol } = useSession();
+  const sucursal = useSucursal();
   const { play } = useSound('/sounds/iosbells.mp3');
   const notifiedRef = useRef<Set<number>>(new Set());
   const isInitialSeed = useRef(true);
 
   useEffect(() => {
-    if (rol !== 'mesero') return;
+    if (rol !== 'mesero' || !sucursal?.id) return;
 
     const supabase = createClientSupabaseClient();
 
     const channel = supabase
-      .channel('waiter-notifications')
+      .channel(`waiter-notifications-${sucursal.id}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'ordenes',
+        filter: `sucursal_id=eq.${sucursal.id}`,
       }, (payload) => {
         const orden = payload.new as { id: number; estado: string };
         if (orden.estado === 'listo') {
@@ -39,7 +42,8 @@ export function WaiterNotification() {
       const { data } = await supabase
         .from('ordenes')
         .select('id')
-        .eq('estado', 'listo');
+        .eq('estado', 'listo')
+        .eq('sucursal_id', sucursal.id);
 
       if (!data) return;
 
@@ -64,7 +68,7 @@ export function WaiterNotification() {
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
     };
-  }, [rol, play]);
+  }, [rol, play, sucursal?.id]);
 
   return null;
 }

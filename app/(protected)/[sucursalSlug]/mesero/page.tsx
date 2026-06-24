@@ -1,17 +1,27 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalId } from '@/lib/sucursal';
 import { Grid3x3, ScrollText, ClipboardList, TrendingUp, Clock, UtensilsCrossed } from 'lucide-react';
 import Link from 'next/link';
 
-export default async function MeseroDashboard() {
+export default async function MeseroDashboard({
+  params,
+}: {
+  params: Promise<{ sucursalSlug: string }>;
+}) {
+  const { sucursalSlug } = await params;
   const supabase = await createServerSupabaseClient();
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
+  const sucursalId = await getServerSucursalId();
+  if (!sucursalId) redirect(`/${sucursalSlug}/mesero`);
+
   const { data: mesasOcupadas } = await supabase
     .from('ordenes')
     .select('mesa_id')
+    .eq('sucursal_id', sucursalId)
     .in('estado', ['pendiente', 'en_preparacion', 'listo', 'entregado']);
 
   const mesasActivas = new Set(mesasOcupadas?.map(o => o.mesa_id) ?? []);
@@ -19,6 +29,7 @@ export default async function MeseroDashboard() {
   const { count: ordenesHoy } = await supabase
     .from('ordenes')
     .select('*', { count: 'exact', head: true })
+    .eq('sucursal_id', sucursalId)
     .gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
 
   return (
@@ -51,7 +62,7 @@ export default async function MeseroDashboard() {
         <h2 className="text-sm font-semibold text-text-primary mb-3">Acciones rápidas</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <Link
-            href="/mesero/mapa"
+            href={`/${sucursalSlug}/mesero/mapa`}
             className="bg-card rounded-2xl border-2 border-border/60 p-4 flex items-center gap-4 hover:border-accent/30 hover:bg-accent/5 transition-colors"
           >
             <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
@@ -64,7 +75,7 @@ export default async function MeseroDashboard() {
           </Link>
 
           <Link
-            href="/mesero/ordenes"
+            href={`/${sucursalSlug}/mesero/ordenes`}
             className="bg-card rounded-2xl border-2 border-border/60 p-4 flex items-center gap-4 hover:border-accent/30 hover:bg-accent/5 transition-colors"
           >
             <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">

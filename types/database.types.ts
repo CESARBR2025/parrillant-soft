@@ -39,61 +39,12 @@ export type Database = {
           nombre?: string;
           orden?: number;
         };
-        Relationships: [];
-      };
-      detalles_orden: {
-        Row: {
-          cantidad: number;
-          created_at: string;
-          id: number;
-          listo: boolean;
-          notas: string | null;
-          orden_id: number;
-          precio_unitario: number;
-          producto_id: number;
-          ronda: number;
-          servido: boolean;
-          tipo: Database["public"]["Enums"]["tipo_producto"];
-        };
-        Insert: {
-          cantidad?: number;
-          created_at?: string;
-          id?: number;
-          listo?: boolean;
-          notas?: string | null;
-          orden_id: number;
-          precio_unitario: number;
-          producto_id: number;
-          ronda?: number;
-          servido?: boolean;
-          tipo: Database["public"]["Enums"]["tipo_producto"];
-        };
-        Update: {
-          cantidad?: number;
-          created_at?: string;
-          id?: number;
-          listo?: boolean;
-          notas?: string | null;
-          orden_id?: number;
-          precio_unitario?: number;
-          producto_id?: number;
-          ronda?: number;
-          servido?: boolean;
-          tipo?: Database["public"]["Enums"]["tipo_producto"];
-        };
         Relationships: [
           {
-            foreignKeyName: "detalles_orden_orden_id_fkey";
-            columns: ["orden_id"];
+            foreignKeyName: "categorias_sucursal_id_fkey";
+            columns: ["sucursal_id"];
             isOneToOne: false;
-            referencedRelation: "ordenes";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "detalles_orden_producto_id_fkey";
-            columns: ["producto_id"];
-            isOneToOne: false;
-            referencedRelation: "productos_menu";
+            referencedRelation: "sucursales";
             referencedColumns: ["id"];
           },
         ];
@@ -105,6 +56,7 @@ export type Database = {
           estado: Database["public"]["Enums"]["estado_mesa"];
           id: number;
           numero: number;
+          sucursal_id: string;
           updated_at: string;
           zona: string | null;
         };
@@ -114,6 +66,7 @@ export type Database = {
           estado?: Database["public"]["Enums"]["estado_mesa"];
           id?: number;
           numero: number;
+          sucursal_id: string;
           updated_at?: string;
           zona?: string | null;
         };
@@ -123,10 +76,19 @@ export type Database = {
           estado?: Database["public"]["Enums"]["estado_mesa"];
           id?: number;
           numero?: number;
+          sucursal_id?: string;
           updated_at?: string;
           zona?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "mesas_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       ordenes: {
         Row: {
@@ -143,6 +105,7 @@ export type Database = {
           notas: string | null;
           orden_padre_id: number | null;
           pagado_con: number | null;
+          sucursal_id: string;
           total: number | null;
           updated_at: string;
         };
@@ -160,6 +123,7 @@ export type Database = {
           notas?: string | null;
           orden_padre_id?: number | null;
           pagado_con?: number | null;
+          sucursal_id: string;
           total?: number | null;
           updated_at?: string;
         };
@@ -177,6 +141,7 @@ export type Database = {
           notas?: string | null;
           orden_padre_id?: number | null;
           pagado_con?: number | null;
+          sucursal_id?: string;
           total?: number | null;
           updated_at?: string;
         };
@@ -207,6 +172,73 @@ export type Database = {
             columns: ["orden_padre_id"];
             isOneToOne: false;
             referencedRelation: "ordenes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ordenes_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sucursales: {
+        Row: {
+          id: string;
+          slug: string;
+          nombre: string;
+          direccion: string | null;
+          activa: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          nombre: string;
+          direccion?: string | null;
+          activa?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          nombre?: string;
+          direccion?: string | null;
+          activa?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      usuario_sucursales: {
+        Row: {
+          usuario_id: string;
+          sucursal_id: string;
+          created_at: string;
+        };
+        Insert: {
+          usuario_id: string;
+          sucursal_id: string;
+          created_at?: string;
+        };
+        Update: {
+          usuario_id?: string;
+          sucursal_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "usuario_sucursales_usuario_id_fkey";
+            columns: ["usuario_id"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "usuario_sucursales_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
             referencedColumns: ["id"];
           },
         ];
@@ -251,6 +283,7 @@ export type Database = {
           imagen_url: string | null;
           nombre: string;
           precio: number;
+          sucursal_id: string;
           tipo: Database["public"]["Enums"]["tipo_producto"];
           updated_at: string;
         };
@@ -263,6 +296,7 @@ export type Database = {
           imagen_url?: string | null;
           nombre: string;
           precio: number;
+          sucursal_id: string;
           tipo?: Database["public"]["Enums"]["tipo_producto"];
           updated_at?: string;
         };
@@ -275,6 +309,7 @@ export type Database = {
           imagen_url?: string | null;
           nombre?: string;
           precio?: number;
+          sucursal_id?: string;
           tipo?: Database["public"]["Enums"]["tipo_producto"];
           updated_at?: string;
         };
@@ -284,6 +319,13 @@ export type Database = {
             columns: ["categoria_id"];
             isOneToOne: false;
             referencedRelation: "categorias";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "productos_menu_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
             referencedColumns: ["id"];
           },
         ];

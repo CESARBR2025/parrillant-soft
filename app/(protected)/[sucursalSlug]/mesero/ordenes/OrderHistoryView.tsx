@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronUp, Search, ScrollText } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useSucursal } from '@/components/providers/SucursalProvider';
 
 interface Detalle {
   id: number;
@@ -81,6 +82,7 @@ function formatElapsed(dateStr: string): string {
 
 export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
   const router = useRouter();
+  const sucursal = useSucursal();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [filter, setFilter] = useState<string>('todas');
 
@@ -93,7 +95,7 @@ export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
       {/* Header */}
       <div>
         <button
-          onClick={() => router.push('/mesero')}
+          onClick={() => router.push(`/${sucursal?.slug}/mesero`)}
           className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1"
         >
           ← Mapa de Mesas

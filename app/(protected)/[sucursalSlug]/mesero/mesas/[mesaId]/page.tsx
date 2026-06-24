@@ -6,9 +6,9 @@ import type { Database } from '@/types/database.types';
 export default async function MesaOrdenPage({
   params,
 }: {
-  params: Promise<{ mesaId: string }>;
+  params: Promise<{ mesaId: string; sucursalSlug: string }>;
 }) {
-  const { mesaId } = await params;
+  const { mesaId, sucursalSlug } = await params;
   const supabase = await createServerSupabaseClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -20,7 +20,7 @@ export default async function MesaOrdenPage({
     .eq('id', Number(mesaId))
     .single();
 
-  if (!mesa) redirect('/mesero');
+  if (!mesa) redirect(`/${sucursalSlug}/mesero`);
 
   const ESTADOS_ACTIVOS: Database['public']['Enums']['estado_orden'][] = ['pendiente', 'en_preparacion', 'listo', 'entregado', 'cuenta_solicitada'];
 
@@ -55,7 +55,7 @@ export default async function MesaOrdenPage({
     .maybeSingle();
 
   if (!ordenPadre) {
-    redirect(`/mesero/mesas/${mesaId}/nueva`);
+    redirect(`/${sucursalSlug}/mesero/mesas/${mesaId}/nueva`);
   }
 
   const { data: subOrdenes } = await supabase

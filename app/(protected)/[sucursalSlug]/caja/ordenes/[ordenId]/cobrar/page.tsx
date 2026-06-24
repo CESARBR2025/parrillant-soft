@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
+import { useSucursal } from '@/components/providers/SucursalProvider'
 import { OrderBill } from '@/components/checkout/OrderBill'
 import { PaymentPanel, type PaymentMethod } from '@/components/checkout/PaymentPanel'
 import { DiscountInput } from '@/components/checkout/DiscountInput'
@@ -38,6 +39,7 @@ export default function CobrarPage() {
   const { ordenId } = useParams<{ ordenId: string }>()
   const router = useRouter()
   const supabase = createClientSupabaseClient()
+  const sucursal = useSucursal()
 
   const [orden, setOrden] = useState<OrdenData | null>(null)
   const [subOrdenes, setSubOrdenes] = useState<OrdenData[]>([])
@@ -65,11 +67,11 @@ export default function CobrarPage() {
         .single();
 
       if (err || !data) {
-        router.push('/caja');
+        router.push(`/${sucursal?.slug}/caja`);
         return;
       }
       if (data.estado !== 'entregado' && data.estado !== 'cuenta_solicitada') {
-        router.push('/caja');
+        router.push(`/${sucursal?.slug}/caja`);
         return;
       }
       setOrden(data as unknown as OrdenData);
@@ -277,7 +279,7 @@ export default function CobrarPage() {
           metodoPago={receipt.metodoPago}
           recibido={receipt.recibido}
           cambio={receipt.cambio}
-          onClose={() => router.push('/caja')}
+          onClose={() => router.push(`/${sucursal?.slug}/caja`)}
         />
       </div>
     )
@@ -287,7 +289,7 @@ export default function CobrarPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Back button */}
       <button
-        onClick={() => router.push('/caja')}
+        onClick={() => router.push(`/${sucursal?.slug}/caja`)}
         className="flex items-center gap-2 text-sm text-muted hover:text-body transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
