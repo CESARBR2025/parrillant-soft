@@ -72,7 +72,7 @@ export default async function GlobalTurnosPage() {
       );
 
       const { count: meserosActivos } = await supabase
-        .from('turnos')
+        .from('registro_turnos_personal')
         .select('*', { count: 'exact', head: true })
         .eq('sucursal_id', s.id)
         .eq('activo', true)

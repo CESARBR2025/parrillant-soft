@@ -13,12 +13,13 @@ const RUTAS_PROTEGIDAS: Array<{ patron: RegExp; rolesPermitidos: Rol[] }> = [
   { patron: /^\/barra(?:\/|$)/, rolesPermitidos: ["super_admin", "admin", "barra"] },
 ];
 
-const SUCURSALES_CONOCIDAS = ['sucursal-lomas', 'sucursal-nogales'];
+const RUTAS_SIN_SUCURSAL = ['login', 'admin', 'auth', '_next', 'api'];
 
 function extractSegments(pathname: string): { sucursalSlug?: string; internalPath: string } {
   const parts = pathname.split('/').filter(Boolean);
   const first = parts[0] ?? '';
-  if (SUCURSALES_CONOCIDAS.includes(first)) {
+  const isSucursalSlug = first && !RUTAS_SIN_SUCURSAL.includes(first) && !first.startsWith('_') && !first.includes('.');
+  if (isSucursalSlug) {
     return { sucursalSlug: first, internalPath: '/' + parts.slice(1).join('/') };
   }
   return { internalPath: pathname };
@@ -97,7 +98,7 @@ export async function middleware(request: NextRequest) {
       !internalPath.startsWith('/mesero/registrar-turno')
     ) {
       const turnoRaw = await (supabase as any)
-        .from('turnos')
+        .from('registro_turnos_personal')
         .select('id')
         .eq('usuario_id', user.id)
         .eq('sucursal_id', sucursal.id)

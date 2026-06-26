@@ -48,7 +48,7 @@ export default async function SucursalTurnosPage({
   const aperturas: { id: string; sucursal_id: string; fecha: string; hora_inicio: string; hora_fin: string; activa: boolean; recurrencia: string | null; recurrencia_fin: string | null }[] = aperturasRaw.data ?? [];
 
   const turnosRaw = await (supabase as any)
-    .from('turnos')
+    .from('registro_turnos_personal')
     .select('id, usuario_id, inicio')
     .eq('sucursal_id', sucursalId)
     .eq('activo', true)

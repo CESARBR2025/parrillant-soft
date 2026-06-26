@@ -27,7 +27,7 @@ export async function verificarTurnoActivo(
   }
 
   const turnoRaw = await (supabase as any)
-    .from('turnos')
+    .from('registro_turnos_personal')
     .select('*')
     .eq('usuario_id', user.id)
     .eq('sucursal_id', sucursalId)

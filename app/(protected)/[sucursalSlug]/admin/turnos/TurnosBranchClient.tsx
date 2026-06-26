@@ -11,6 +11,7 @@ import {
   programarApertura, toggleApertura, eliminarApertura,
   cerrarTurno, reasignarTurno, crearExcepcion,
   eliminarExcepcion, obtenerCalendarioMensual,
+  obtenerSucursalesConApertura,
 } from '@/app/actions/turnos';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -74,6 +75,7 @@ export function TurnosBranchClient({
   // Reassign modal
   const [showReasignar, setShowReasignar] = useState<{ turnoId: string } | null>(null);
   const [sucursalDestino, setSucursalDestino] = useState('');
+  const [otrasSucursales, setOtrasSucursales] = useState<SucursalSimple[]>([]);
 
   // Calendar
   const [mesActual, setMesActual] = useState(() => new Date());
@@ -90,7 +92,20 @@ export function TurnosBranchClient({
   const [editHoraFin, setEditHoraFin] = useState('');
   const [isEditingException, setIsEditingException] = useState(false);
 
-  const otrasSucursales = todasSucursales.filter(s => s.id !== sucursal.id);
+  useEffect(() => {
+    if (showReasignar) {
+      obtenerSucursalesConApertura().then(sucsConApertura => {
+        console.log('[reasignar] sucursales con apertura:', sucsConApertura);
+        const filtradas = sucsConApertura.filter(s => s.id !== sucursal.id);
+        console.log('[reasignar] filtradas (sin actual):', filtradas.map(s => s.nombre));
+        setOtrasSucursales(filtradas);
+      }).catch(err => {
+        console.error('[reasignar] error:', err);
+        setOtrasSucursales([]);
+      });
+      setSucursalDestino('');
+    }
+  }, [showReasignar]);
 
   function handleRecurrenciaChange(tipo: string) {
     setRecurrencia(tipo);
@@ -121,9 +136,15 @@ export function TurnosBranchClient({
 
   const cargarCalendario = useCallback(async (anio: number, mes: number) => {
     setLoadingCalendario(true);
-    const result = await obtenerCalendarioMensual(sucursal.id, anio, mes);
-    setCalendario(result.dias);
-    setLoadingCalendario(false);
+    try {
+      const result = await obtenerCalendarioMensual(sucursal.id, anio, mes);
+      setCalendario(result.dias ?? []);
+    } catch (err) {
+      console.error('Error al cargar calendario:', err);
+      setCalendario([]);
+    } finally {
+      setLoadingCalendario(false);
+    }
   }, [sucursal.id]);
 
   useEffect(() => {
@@ -145,7 +166,7 @@ export function TurnosBranchClient({
     setIsSubmitting('programar');
     const result = await programarApertura(
       sucursal.id,
-      recurrencia ? fechaInicio : fechaInicio,
+      fechaInicio,
       horaInicio, horaFin,
       recurrencia || null,
       recurrencia ? fechaFin : null
@@ -277,8 +298,8 @@ export function TurnosBranchClient({
   const ahora = new Date();
   const aperturaHoyActiva = aperturasIniciales.some(
     a => a.activa && a.fecha === ahora.toISOString().split('T')[0] &&
-    a.hora_inicio <= ahora.toTimeString().slice(0, 5) &&
-    a.hora_fin >= ahora.toTimeString().slice(0, 5)
+      a.hora_inicio <= ahora.toTimeString().slice(0, 5) &&
+      a.hora_fin >= ahora.toTimeString().slice(0, 5)
   );
 
   // Calendar grid helpers
@@ -317,22 +338,20 @@ export function TurnosBranchClient({
       <div className="flex gap-1 bg-bg-base rounded-xl p-1 w-fit">
         <button
           onClick={() => setActiveTab('programaciones')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === 'programaciones'
-              ? 'bg-card text-text-primary shadow-sm'
-              : 'text-muted hover:text-text-primary'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'programaciones'
+            ? 'bg-card text-text-primary shadow-sm'
+            : 'text-muted hover:text-text-primary'
+            }`}
         >
           <Clock className="w-4 h-4" />
           Programaciones
         </button>
         <button
           onClick={() => setActiveTab('calendario')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            activeTab === 'calendario'
-              ? 'bg-card text-text-primary shadow-sm'
-              : 'text-muted hover:text-text-primary'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'calendario'
+            ? 'bg-card text-text-primary shadow-sm'
+            : 'text-muted hover:text-text-primary'
+            }`}
         >
           <CalendarDays className="w-4 h-4" />
           Calendario
@@ -584,9 +603,8 @@ export function TurnosBranchClient({
                       key={dia}
                       onClick={() => clickable && info && abrirEditarDia(info)}
                       disabled={!clickable}
-                      className={`aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition-all ${bgClass} ${textClass} ${
-                        clickable ? 'cursor-pointer hover:scale-105' : 'cursor-default'
-                      } ${esHoy ? 'ring-2 ring-accent' : ''}`}
+                      className={`aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition-all ${bgClass} ${textClass} ${clickable ? 'cursor-pointer hover:scale-105' : 'cursor-default'
+                        } ${esHoy ? 'ring-2 ring-accent' : ''}`}
                     >
                       <span className="font-semibold">{dia}</span>
                       {info?.excepcion && (
@@ -642,11 +660,10 @@ export function TurnosBranchClient({
                       key={opt.value}
                       type="button"
                       onClick={() => handleRecurrenciaChange(opt.value)}
-                      className={`p-3 rounded-xl border-2 text-sm font-medium transition-colors text-left ${
-                        recurrencia === opt.value
-                          ? 'border-accent bg-accent/10 text-accent'
-                          : 'border-border-default text-text-primary hover:border-accent/50'
-                      }`}
+                      className={`p-3 rounded-xl border-2 text-sm font-medium transition-colors text-left ${recurrencia === opt.value
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-border-default text-text-primary hover:border-accent/50'
+                        }`}
                     >
                       <span className="block font-semibold">{opt.label}</span>
                       <span className="block text-xs text-muted mt-0.5">{opt.desc}</span>
@@ -734,11 +751,10 @@ export function TurnosBranchClient({
       {showEditarDia && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-card rounded-3xl border-2 border-border/60 w-full max-w-md shadow-2xl">
-            <div className={`px-6 pt-6 pb-5 ${
-              showEditarDia.excepcion
-                ? 'bg-gradient-to-r from-orange-500/10 to-amber-400/10'
-                : 'bg-gradient-to-r from-blue-500/10 to-accent/10'
-            }`}>
+            <div className={`px-6 pt-6 pb-5 ${showEditarDia.excepcion
+              ? 'bg-gradient-to-r from-orange-500/10 to-amber-400/10'
+              : 'bg-gradient-to-r from-blue-500/10 to-accent/10'
+              }`}>
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-text-primary">Modificar Día</h2>
                 <button onClick={() => setShowEditarDia(null)} className="text-muted hover:text-body p-1.5 rounded-lg hover:bg-bg-base">
@@ -823,11 +839,10 @@ export function TurnosBranchClient({
                     <button
                       key={s.id}
                       onClick={() => setSucursalDestino(s.id)}
-                      className={`w-full text-left p-3 rounded-xl border-2 transition-colors ${
-                        sucursalDestino === s.id
-                          ? 'border-accent bg-accent/10'
-                          : 'border-border-default hover:border-accent/50'
-                      }`}
+                      className={`w-full text-left p-3 rounded-xl border-2 transition-colors ${sucursalDestino === s.id
+                        ? 'border-accent bg-accent/10'
+                        : 'border-border-default hover:border-accent/50'
+                        }`}
                     >
                       <p className="text-sm font-medium text-text-primary">{s.nombre}</p>
                       <p className="text-xs text-muted">{s.slug}</p>

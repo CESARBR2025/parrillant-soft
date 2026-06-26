@@ -94,6 +94,8 @@ export default function LoginPage() {
             const horaActual = new Date().toTimeString().slice(0, 5);
             const sucsIds = sucs.map(s => s.id);
 
+            console.log('[login] debug:', { sucs, hoy, horaActual, sucsIds });
+
             // Aperturas de día único (fecha = hoy)
             const unicasRaw = await supabase
                 .from('aperturas_turno')
@@ -104,6 +106,7 @@ export default function LoginPage() {
                 .gte('hora_fin', horaActual)
                 .eq('activa', true);
             const unicas: { sucursal_id: string }[] = unicasRaw.data ?? [];
+            console.log('[login] unicas:', unicas, 'error:', unicasRaw.error);
 
             // Aperturas recurrentes activas hoy (fecha <= hoy, recurrencia_fin >= hoy)
             const recurrentesRaw = await (supabase as any)
@@ -115,6 +118,7 @@ export default function LoginPage() {
                 .eq('activa', true)
                 .not('recurrencia', 'is', null);
             const recurrentes: { id: string; sucursal_id: string; hora_inicio: string; hora_fin: string }[] = recurrentesRaw.data ?? [];
+            console.log('[login] recurrentes:', recurrentes, 'error:', recurrentesRaw.error);
 
             const sucursalesConApertura = new Set(unicas.map(a => a.sucursal_id));
 
@@ -134,7 +138,11 @@ export default function LoginPage() {
                 }
             }
 
+            console.log('[login] sucursalesConApertura:', [...sucursalesConApertura]);
+
             const sucsFiltradas = sucs.filter(s => sucursalesConApertura.has(s.id));
+
+            console.log('[login] sucsFiltradas:', sucsFiltradas);
 
             if (sucsFiltradas.length === 0) {
                 await supabase.auth.signOut();
@@ -156,12 +164,14 @@ export default function LoginPage() {
     async function handleConfirmarRegistro() {
         if (!confirmarSucursal) return;
         setRegistrandoTurno(confirmarSucursal.id);
+        setError(null);
         const result = await registrarTurno(confirmarSucursal.id, confirmarSucursal.slug);
         setRegistrandoTurno(null);
-        setConfirmarSucursal(null);
         if (result.error) {
             setError(result.error);
+            setConfirmarSucursal(null);
         } else {
+            setConfirmarSucursal(null);
             router.push(`/${confirmarSucursal.slug}/mesero`);
         }
     }

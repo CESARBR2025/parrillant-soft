@@ -291,6 +291,67 @@ export type Database = {
           },
         ];
       };
+      registro_turnos_personal: {
+        Row: Turno;
+        Insert: {
+          id?: string;
+          apertura_id?: string | null;
+          usuario_id: string;
+          sucursal_id: string;
+          inicio?: string;
+          fin?: string | null;
+          activo?: boolean;
+          reasignado_de?: string | null;
+          cerrado_por?: string | null;
+          notas?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          apertura_id?: string | null;
+          usuario_id?: string;
+          sucursal_id?: string;
+          inicio?: string;
+          fin?: string | null;
+          activo?: boolean;
+          reasignado_de?: string | null;
+          cerrado_por?: string | null;
+          notas?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "turnos_apertura_id_fkey";
+            columns: ["apertura_id"];
+            isOneToOne: false;
+            referencedRelation: "aperturas_turno";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_usuario_id_fkey";
+            columns: ["usuario_id"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_cerrado_por_fkey";
+            columns: ["cerrado_por"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       turnos: {
         Row: Turno;
         Insert: {

@@ -249,7 +249,7 @@ COMMENT ON TABLE public.aperturas_excepciones IS 'Modificaciones manuales a día
 
 CREATE TABLE public.turnos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  apertura_id UUID REFERENCES public.aperturas_turno(id),
+  apertura_id UUID REFERENCES public.aperturas_turno(id) ON DELETE SET NULL,
   usuario_id UUID NOT NULL REFERENCES public.perfiles(id) ON DELETE CASCADE,
   sucursal_id UUID NOT NULL REFERENCES public.sucursales(id) ON DELETE CASCADE,
   inicio TIMESTAMPTZ NOT NULL DEFAULT NOW(),
