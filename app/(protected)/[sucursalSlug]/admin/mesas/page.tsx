@@ -17,11 +17,12 @@ export default async function AdminMesasPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await supabase
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil || (perfil.rol !== 'admin' && perfil.rol !== 'super_admin')) {
     redirect(`/${sucursalSlug}/admin`);

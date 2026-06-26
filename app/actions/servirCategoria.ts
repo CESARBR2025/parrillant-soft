@@ -16,11 +16,12 @@ export async function servirCategoria(
     return { error: 'No autorizado' };
   }
 
-  const { data: orden } = await supabase
+  const ordenRaw = await (supabase as any)
     .from('ordenes')
     .select('id, estado')
     .eq('id', ordenId)
     .single();
+  const orden = ordenRaw.data as { id: number; estado: string } | null;
 
   if (!orden) {
     return { error: 'Orden no encontrada' };
@@ -61,13 +62,13 @@ export async function servirCategoria(
 
   if (remaining.length === 0) {
     // All served — transition to entregado
-    await supabase
+    await (supabase as any)
       .from('ordenes')
       .update({ estado: 'entregado', alimentos_servidos: true, bebidas_servidos: true })
       .eq('id', ordenId);
   } else {
     // Update the order-level flag for this tipo
-    await supabase
+    await (supabase as any)
       .from('ordenes')
       .update(tipo === 'alimento' ? { alimentos_servidos: true } : { bebidas_servidos: true })
       .eq('id', ordenId);

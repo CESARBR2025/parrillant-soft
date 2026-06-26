@@ -10,11 +10,12 @@ export default async function GlobalAdminPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await supabase
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil) redirect('/login');
   const rol = perfil.rol as Rol;
@@ -23,11 +24,12 @@ export default async function GlobalAdminPage() {
     redirect('/login');
   }
 
-  const { data: sucursales } = await supabase
+  const sucursalesRaw = await supabase
     .from('sucursales')
     .select('id, slug, nombre, activa');
+  const sucursales: { id: string; slug: string; nombre: string; activa: boolean }[] = sucursalesRaw.data ?? [];
 
-  if (!sucursales || sucursales.length === 0) {
+  if (sucursales.length === 0) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-text-primary">Panel Global</h1>

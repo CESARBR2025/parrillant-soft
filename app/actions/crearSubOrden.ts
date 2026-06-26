@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getServerSucursalId, getServerSucursalSlug } from '@/lib/sucursal';
+import { verificarTurnoActivo } from '@/lib/turno';
 
 interface ItemSub {
   producto_id: number;
@@ -31,11 +32,15 @@ export async function crearSubOrden(
   const slug = await getServerSucursalSlug();
   if (!sucursalId || !slug) return { error: 'Sucursal no encontrada' };
 
-  const { data: padre } = await supabase
+  const { error: turnoError } = await verificarTurnoActivo(sucursalId);
+  if (turnoError) return { error: turnoError };
+
+  const padreRaw = await (supabase as any)
     .from('ordenes')
     .select('id, mesa_id, estado')
     .eq('id', orden_padre_id)
     .single();
+  const padre = padreRaw.data as { id: number; mesa_id: number; estado: string } | null;
 
   if (!padre) {
     return { error: 'Orden principal no encontrada' };
@@ -45,7 +50,7 @@ export async function crearSubOrden(
     return { error: 'La orden principal ya está cerrada' };
   }
 
-  const { data: orden, error: ordenError } = await supabase
+  const ordenRaw = await (supabase as any)
     .from('ordenes')
     .insert({
       mesa_id: padre.mesa_id,
@@ -56,6 +61,8 @@ export async function crearSubOrden(
     })
     .select()
     .single();
+  const orden = ordenRaw.data as { id: number } | null;
+  const ordenError = ordenRaw.error;
 
   if (ordenError || !orden) {
     return { error: ordenError?.message ?? 'Error al crear la sub-orden' };
@@ -75,7 +82,7 @@ export async function crearSubOrden(
     .insert(detalles);
 
   if (detallesError) {
-    await supabase.from('ordenes').delete().eq('id', orden.id);
+    await (supabase as any).from('ordenes').delete().eq('id', orden.id);
     return { error: detallesError.message };
   }
 

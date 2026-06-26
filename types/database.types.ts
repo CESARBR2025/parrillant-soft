@@ -6,6 +6,43 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+export interface AperturaTurno {
+  id: string;
+  sucursal_id: string;
+  fecha: string;
+  hora_inicio: string;
+  hora_fin: string;
+  activa: boolean;
+  recurrencia: string | null;
+  recurrencia_fin: string | null;
+  creada_por: string | null;
+  created_at: string;
+}
+
+export interface AperturaExcepcion {
+  id: string;
+  apertura_id: string;
+  fecha: string;
+  hora_inicio: string;
+  hora_fin: string;
+  created_at: string;
+}
+
+export interface Turno {
+  id: string;
+  apertura_id: string | null;
+  usuario_id: string;
+  sucursal_id: string;
+  inicio: string;
+  fin: string | null;
+  activo: boolean;
+  reasignado_de: string | null;
+  cerrado_por: string | null;
+  notas: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -179,6 +216,138 @@ export type Database = {
             columns: ["sucursal_id"];
             isOneToOne: false;
             referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      aperturas_turno: {
+        Row: AperturaTurno;
+        Insert: {
+          id?: string;
+          sucursal_id: string;
+          fecha: string;
+          hora_inicio: string;
+          hora_fin: string;
+          activa?: boolean;
+          recurrencia?: string | null;
+          recurrencia_fin?: string | null;
+          creada_por?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          sucursal_id?: string;
+          fecha?: string;
+          hora_inicio?: string;
+          hora_fin?: string;
+          activa?: boolean;
+          recurrencia?: string | null;
+          recurrencia_fin?: string | null;
+          creada_por?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "aperturas_turno_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "aperturas_turno_creada_por_fkey";
+            columns: ["creada_por"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      aperturas_excepciones: {
+        Row: AperturaExcepcion;
+        Insert: {
+          id?: string;
+          apertura_id: string;
+          fecha: string;
+          hora_inicio: string;
+          hora_fin: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          apertura_id?: string;
+          fecha?: string;
+          hora_inicio?: string;
+          hora_fin?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "aperturas_excepciones_apertura_id_fkey";
+            columns: ["apertura_id"];
+            isOneToOne: false;
+            referencedRelation: "aperturas_turno";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      turnos: {
+        Row: Turno;
+        Insert: {
+          id?: string;
+          apertura_id?: string | null;
+          usuario_id: string;
+          sucursal_id: string;
+          inicio?: string;
+          fin?: string | null;
+          activo?: boolean;
+          reasignado_de?: string | null;
+          cerrado_por?: string | null;
+          notas?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          apertura_id?: string | null;
+          usuario_id?: string;
+          sucursal_id?: string;
+          inicio?: string;
+          fin?: string | null;
+          activo?: boolean;
+          reasignado_de?: string | null;
+          cerrado_por?: string | null;
+          notas?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "turnos_apertura_id_fkey";
+            columns: ["apertura_id"];
+            isOneToOne: false;
+            referencedRelation: "aperturas_turno";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_usuario_id_fkey";
+            columns: ["usuario_id"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_cerrado_por_fkey";
+            columns: ["cerrado_por"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
             referencedColumns: ["id"];
           },
         ];

@@ -12,11 +12,12 @@ export default async function Home() {
     redirect('/login');
   }
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await (supabase as any)
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil) {
     redirect('/login');
@@ -28,11 +29,12 @@ export default async function Home() {
     redirect('/admin');
   }
 
-  const { data: userSucursales } = await supabase
+  const userSucursalesRaw = await (supabase as any)
     .from('usuario_sucursales')
     .select('sucursales!inner(slug)')
     .eq('usuario_id', user.id)
     .limit(1);
+  const userSucursales = userSucursalesRaw.data;
 
   const slug = (userSucursales?.[0] as unknown as { sucursales: { slug: string } })?.sucursales?.slug;
 

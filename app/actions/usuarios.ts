@@ -17,11 +17,12 @@ async function authorizeSuperAdmin() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await (supabase as any)
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil || perfil.rol !== 'super_admin') return null;
   return supabase;
@@ -33,11 +34,12 @@ async function authorizeAdmin() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await (supabase as any)
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil || (perfil.rol !== 'admin' && perfil.rol !== 'super_admin')) return null;
   return supabase;
@@ -62,7 +64,7 @@ export async function crearUsuario(data: {
 
   if (error) return { error: error.message };
 
-  const { error: perfilError } = await supabaseAdmin
+  const { error: perfilError } = await (supabaseAdmin as any)
     .from('perfiles')
     .upsert({
       id: user.user.id,
@@ -79,7 +81,7 @@ export async function crearUsuario(data: {
       sucursal_id: sid,
     }));
 
-    const { error: asigError } = await supabaseAdmin
+    const { error: asigError } = await (supabaseAdmin as any)
       .from('usuario_sucursales')
       .insert(asignaciones);
 
@@ -94,7 +96,7 @@ export async function actualizarUsuario(id: string, data: { nombre?: string; rol
   const auth = await authorizeSuperAdmin();
   if (!auth) return { error: 'No autorizado' };
 
-  const { error } = await supabaseAdmin
+  const { error } = await (supabaseAdmin as any)
     .from('perfiles')
     .update(data)
     .eq('id', id);
@@ -109,15 +111,16 @@ export async function toggleActivoUsuario(id: string) {
   const auth = await authorizeSuperAdmin();
   if (!auth) return { error: 'No autorizado' };
 
-  const { data: perfil } = await supabaseAdmin
+  const perfilRaw = await (supabaseAdmin as any)
     .from('perfiles')
     .select('activo')
     .eq('id', id)
     .single();
+  const perfil = perfilRaw.data as { activo: boolean } | null;
 
   if (!perfil) return { error: 'Usuario no encontrado' };
 
-  const { error } = await supabaseAdmin
+  const { error } = await (supabaseAdmin as any)
     .from('perfiles')
     .update({ activo: !perfil.activo })
     .eq('id', id);
@@ -132,21 +135,22 @@ export async function eliminarUsuario(id: string) {
   const auth = await authorizeSuperAdmin();
   if (!auth) return { error: 'No autorizado' };
 
-  const { data: perfil } = await auth
+  const perfilRaw = await (auth as any)
     .from('perfiles')
     .select('activo')
     .eq('id', id)
     .single();
+  const perfil = perfilRaw.data as { activo: boolean } | null;
 
   if (!perfil) return { error: 'Usuario no encontrado' };
   if (perfil.activo) return { error: 'Solo puedes eliminar usuarios inactivos' };
 
-  await supabaseAdmin
+  await (supabaseAdmin as any)
     .from('usuario_sucursales')
     .delete()
     .eq('usuario_id', id);
 
-  const { error: perfilError } = await supabaseAdmin
+  const { error: perfilError } = await (supabaseAdmin as any)
     .from('perfiles')
     .delete()
     .eq('id', id);
@@ -164,7 +168,7 @@ export async function asignarSucursal(usuarioId: string, sucursalId: string) {
   const auth = await authorizeAdmin();
   if (!auth) return { error: 'No autorizado' };
 
-  const { error } = await supabaseAdmin
+  const { error } = await (supabaseAdmin as any)
     .from('usuario_sucursales')
     .insert({ usuario_id: usuarioId, sucursal_id: sucursalId });
 
@@ -180,7 +184,7 @@ export async function removerSucursal(usuarioId: string, sucursalId: string) {
   const auth = await authorizeAdmin();
   if (!auth) return { error: 'No autorizado' };
 
-  const { error } = await supabaseAdmin
+  const { error } = await (supabaseAdmin as any)
     .from('usuario_sucursales')
     .delete()
     .eq('usuario_id', usuarioId)

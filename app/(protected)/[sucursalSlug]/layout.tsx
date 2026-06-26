@@ -21,11 +21,12 @@ export default async function SucursalLayout({
   const sucursal = await fetchSucursalBySlug(sucursalSlug);
   if (!sucursal) redirect('/login');
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await supabase
     .from('perfiles')
     .select('rol, activo')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string; activo: boolean } | null;
 
   if (!perfil || !perfil.activo) redirect('/login');
 

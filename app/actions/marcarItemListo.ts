@@ -10,11 +10,12 @@ export async function marcarItemListo(detalleId: number, listo: boolean = true) 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'No autorizado' };
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await (supabase as any)
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil) return { error: 'Perfil no encontrado' };
 

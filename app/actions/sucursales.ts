@@ -11,11 +11,12 @@ async function getSuperAdmin() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await (supabase as any)
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil || perfil.rol !== 'super_admin') return null;
 
@@ -53,7 +54,7 @@ async function clonarMenu(
     if (nueva) categoriaMapping.set(cat.id, nueva.id);
   }
 
-  const { data: productos } = await supabase
+  const { data: productos } = await (supabase as any)
     .from('productos_menu')
     .select('*')
     .eq('sucursal_id', origenId);
@@ -64,7 +65,7 @@ async function clonarMenu(
     const newCategoriaId = categoriaMapping.get(prod.categoria_id);
     if (!newCategoriaId) continue;
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('productos_menu')
       .insert({
         nombre: prod.nombre,
@@ -96,17 +97,18 @@ export async function crearSucursal(data: {
     return { error: 'Slug inválido. Solo minúsculas, números y guiones' };
   }
 
-  const { data: existente } = await supabase
+  const existenteRaw = await (supabase as any)
     .from('sucursales')
     .select('id')
     .eq('slug', data.slug)
     .maybeSingle();
+  const existente = existenteRaw.data as { id: string } | null;
 
   if (existente) {
     return { error: 'Ya existe una sucursal con ese slug' };
   }
 
-  const { data: nueva, error: insertError } = await supabase
+  const nuevaRaw = await (supabase as any)
     .from('sucursales')
     .insert({
       slug: data.slug,
@@ -116,8 +118,10 @@ export async function crearSucursal(data: {
     })
     .select()
     .single();
+  const nueva = nuevaRaw.data as { id: string } | null;
+  const insertError = nuevaRaw.error;
 
-  if (insertError) return { error: insertError.message };
+  if (insertError || !nueva) return { error: insertError?.message ?? 'Error al crear sucursal' };
 
   if (data.clonarDesdeId) {
     const errorClon = await clonarMenu(supabase, data.clonarDesdeId, nueva.id);
@@ -140,19 +144,20 @@ export async function actualizarSucursal(
   }
 
   if (data.slug) {
-    const { data: existente } = await supabase
+    const existenteRaw = await (supabase as any)
       .from('sucursales')
       .select('id')
       .eq('slug', data.slug)
       .neq('id', id)
       .maybeSingle();
+    const existente = existenteRaw.data as { id: string } | null;
 
     if (existente) {
       return { error: 'Ya existe otra sucursal con ese slug' };
     }
   }
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('sucursales')
     .update(data)
     .eq('id', id);
@@ -167,7 +172,7 @@ export async function toggleSucursalActiva(id: string, activa: boolean) {
   const supabase = await getSuperAdmin();
   if (!supabase) return { error: 'No autorizado' };
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('sucursales')
     .update({ activa })
     .eq('id', id);
@@ -182,27 +187,29 @@ export async function eliminarSucursal(id: string) {
   const supabase = await getSuperAdmin();
   if (!supabase) return { error: 'No autorizado' };
 
-  const { count: mesas } = await supabase
+  const mesasRaw = await (supabase as any)
     .from('mesas')
     .select('*', { count: 'exact', head: true })
     .eq('sucursal_id', id);
+  const mesas = mesasRaw.count;
 
   if (mesas && mesas > 0) {
     return { error: 'No se puede eliminar: la sucursal tiene mesas registradas. Desactívala en su lugar.' };
   }
 
-  const { count: ordenes } = await supabase
+  const ordenesRaw = await (supabase as any)
     .from('ordenes')
     .select('*', { count: 'exact', head: true })
     .eq('sucursal_id', id);
+  const ordenes = ordenesRaw.count;
 
   if (ordenes && ordenes > 0) {
     return { error: 'No se puede eliminar: la sucursal tiene órdenes. Desactívala en su lugar.' };
   }
 
-  await supabase.from('usuario_sucursales').delete().eq('sucursal_id', id);
+  await (supabase as any).from('usuario_sucursales').delete().eq('sucursal_id', id);
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('sucursales')
     .delete()
     .eq('id', id);

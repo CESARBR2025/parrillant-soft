@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getServerSucursalId, getServerSucursalSlug } from '@/lib/sucursal';
+import { verificarTurnoActivo } from '@/lib/turno';
 
 interface ItemCrear {
   producto_id: number;
@@ -33,8 +34,11 @@ export async function crearOrden(
   const slug = await getServerSucursalSlug();
   if (!sucursalId || !slug) return { error: 'Sucursal no encontrada' };
 
+  const { error: turnoError } = await verificarTurnoActivo(sucursalId);
+  if (turnoError) return { error: turnoError };
+
   // Crear la orden
-  const { data: orden, error: ordenError } = await supabase
+  const { data: orden, error: ordenError } = await (supabase as any)
     .from('ordenes')
     .insert({
       mesa_id,
@@ -67,12 +71,12 @@ export async function crearOrden(
 
   if (detallesError) {
     // Limpiar orden si fallan los detalles
-    await supabase.from('ordenes').delete().eq('id', orden.id);
+    await (supabase as any).from('ordenes').delete().eq('id', orden.id);
     return { error: detallesError.message };
   }
 
   // Ocupar la mesa
-  await supabase
+  await (supabase as any)
     .from('mesas')
     .update({ estado: 'ocupada' })
     .eq('id', mesa_id);

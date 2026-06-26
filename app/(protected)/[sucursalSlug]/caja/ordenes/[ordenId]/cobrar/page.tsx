@@ -56,7 +56,7 @@ export default function CobrarPage() {
 
   useEffect(() => {
     async function load() {
-      const { data, error: err } = await supabase
+      const ordenRaw = await supabase
         .from('ordenes')
         .select(
           `id, estado, created_at, mesa_id,
@@ -65,8 +65,9 @@ export default function CobrarPage() {
         )
         .eq('id', Number(ordenId))
         .single();
+      const data = ordenRaw.data as OrdenData | null;
 
-      if (err || !data) {
+      if (!data) {
         router.push(`/${sucursal?.slug}/caja`);
         return;
       }
@@ -74,10 +75,10 @@ export default function CobrarPage() {
         router.push(`/${sucursal?.slug}/caja`);
         return;
       }
-      setOrden(data as unknown as OrdenData);
+      setOrden(data);
 
       // Fetch sub-orders
-      const { data: subs } = await supabase
+      const subsRaw = await supabase
         .from('ordenes')
         .select(
           `id, estado, created_at, mesa_id,
@@ -86,8 +87,9 @@ export default function CobrarPage() {
         .eq('orden_padre_id', Number(ordenId))
         .in('estado', ['entregado', 'cuenta_solicitada'])
         .order('created_at', { ascending: true });
+      const subs = (subsRaw.data ?? []) as unknown as OrdenData[];
 
-      setSubOrdenes((subs ?? []) as unknown as OrdenData[]);
+      setSubOrdenes(subs);
       setLoading(false);
     }
 
@@ -142,8 +144,8 @@ export default function CobrarPage() {
         }
 
         if (discount > 0) {
-          await supabase
-            .from('ordenes')
+          await (supabase
+            .from('ordenes') as any)
             .update({ notas: `Descuento aplicado: $${discount.toFixed(2)}` })
             .eq('id', orden.id)
         }

@@ -45,21 +45,23 @@ export async function middleware(request: NextRequest) {
   const { sucursalSlug, internalPath } = extractSegments(pathname);
 
   if (sucursalSlug) {
-    const { data: sucursal } = await supabase
+    const sucursalRaw = await (supabase as any)
       .from("sucursales")
       .select("id")
       .eq("slug", sucursalSlug)
       .single();
+    const sucursal = sucursalRaw.data as { id: string } | null;
 
     if (!sucursal) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
-    const { data: perfil } = await supabase
+    const perfilRaw = await (supabase as any)
       .from("perfiles")
       .select("rol, activo")
       .eq("id", user.id)
       .single();
+    const perfil = perfilRaw.data as { rol: string; activo: boolean } | null;
 
     if (!perfil || !perfil.activo) {
       return NextResponse.redirect(new URL("/login?error=cuenta_inactiva", request.url));
@@ -67,12 +69,13 @@ export async function middleware(request: NextRequest) {
 
     const esAdmin = perfil.rol === 'super_admin' || perfil.rol === 'admin';
     if (!esAdmin) {
-      const { data: acceso } = await supabase
+      const accesoRaw = await (supabase as any)
         .from("usuario_sucursales")
         .select("sucursal_id")
         .eq("usuario_id", user.id)
         .eq("sucursal_id", sucursal.id)
         .maybeSingle();
+      const acceso = accesoRaw.data as { sucursal_id: string } | null;
 
       if (!acceso) {
         return NextResponse.redirect(new URL("/login", request.url));
@@ -88,15 +91,39 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL(`/${sucursalSlug}${rutaInicio}`, request.url));
     }
 
+    if (
+      perfil.rol === 'mesero' &&
+      rutaProtegida?.rolesPermitidos.includes('mesero') &&
+      !internalPath.startsWith('/mesero/registrar-turno')
+    ) {
+      const turnoRaw = await (supabase as any)
+        .from('turnos')
+        .select('id')
+        .eq('usuario_id', user.id)
+        .eq('sucursal_id', sucursal.id)
+        .eq('activo', true)
+        .is('fin', null)
+        .maybeSingle();
+      const turno = turnoRaw.data as { id: string } | null;
+
+      if (turno) {
+        response.cookies.set('turno_id', turno.id, { path: '/', httpOnly: true });
+      } else {
+        response.cookies.delete('turno_id');
+        return NextResponse.redirect(new URL(`/${sucursalSlug}/mesero/registrar-turno`, request.url));
+      }
+    }
+
     return response;
   }
 
   if (pathname === "/") {
-    const { data: perfil } = await supabase
+    const perfilRaw = await (supabase as any)
       .from("perfiles")
       .select("rol")
       .eq("id", user.id)
       .single();
+    const perfil = perfilRaw.data as { rol: string } | null;
 
     if (perfil) {
       const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol] ?? '/mesero';
@@ -106,11 +133,12 @@ export async function middleware(request: NextRequest) {
 
   const rutaProtegida = RUTAS_PROTEGIDAS.find(r => r.patron.test(pathname));
   if (rutaProtegida) {
-    const { data: perfil } = await supabase
+    const perfilRaw = await (supabase as any)
       .from("perfiles")
       .select("rol, activo")
       .eq("id", user.id)
       .single();
+    const perfil = perfilRaw.data as { rol: string; activo: boolean } | null;
 
     if (!perfil || !perfil.activo) {
       return NextResponse.redirect(new URL("/login?error=cuenta_inactiva", request.url));
@@ -123,14 +151,15 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL(rutaInicio, request.url));
       }
 
-      const { data: userSuc } = await supabase
+      const userSucRaw = await (supabase as any)
         .from("usuario_sucursales")
         .select("sucursales!inner(slug)")
         .eq("usuario_id", user.id)
         .limit(1)
         .single();
+      const userSuc = userSucRaw.data as { sucursales: { slug: string } } | null;
 
-      const slug = (userSuc as unknown as { sucursales: { slug: string } })?.sucursales?.slug;
+      const slug = userSuc?.sucursales?.slug;
       if (slug) {
         return NextResponse.redirect(new URL(`/${slug}${rutaInicio}`, request.url));
       }

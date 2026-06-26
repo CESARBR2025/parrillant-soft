@@ -39,7 +39,7 @@ export function WaiterNotification() {
       .subscribe();
 
     const poll = async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('ordenes')
         .select('id')
         .eq('estado', 'listo')
@@ -47,13 +47,14 @@ export function WaiterNotification() {
 
       if (!data) return;
 
+      const ordenes = data as { id: number }[];
       if (isInitialSeed.current) {
-        data.forEach((o) => notifiedRef.current.add(o.id));
+        ordenes.forEach((o) => notifiedRef.current.add(o.id));
         isInitialSeed.current = false;
         return;
       }
 
-      data.forEach((o) => {
+      ordenes.forEach((o) => {
         if (!notifiedRef.current.has(o.id)) {
           notifiedRef.current.add(o.id);
           play();

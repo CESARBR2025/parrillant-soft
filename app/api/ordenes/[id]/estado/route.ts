@@ -49,11 +49,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Sucursal no identificada" }, { status: 400 });
     }
 
-    const { data: perfil } = await supabase
+    const perfilRaw = await (supabase as any)
       .from("perfiles")
       .select("rol")
       .eq("id", user.id)
       .single();
+    const perfil = perfilRaw.data as { rol: string } | null;
 
     if (!perfil) {
       return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
@@ -69,12 +70,13 @@ export async function PATCH(
 
     const ordenId = Number(id);
 
-    const { data: orden } = await supabase
+    const ordenRaw = await (supabase as any)
       .from("ordenes")
       .select("id, mesa_id, orden_padre_id")
       .eq("id", ordenId)
       .eq("sucursal_id", sucursalId)
       .single();
+    const orden = ordenRaw.data as { id: number; mesa_id: number; orden_padre_id: number | null } | null;
 
     if (!orden) {
       return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
@@ -84,10 +86,11 @@ export async function PATCH(
 
     let subIds: number[] = [];
     if (esPadre) {
-      const { data: subs } = await supabase
+      const subsRaw = await (supabase as any)
         .from("ordenes")
         .select("id")
         .eq("orden_padre_id", ordenId);
+      const subs = subsRaw.data as { id: number }[] | null;
       subIds = (subs ?? []).map(s => s.id);
     }
 
@@ -116,13 +119,15 @@ export async function PATCH(
       if (pagado_con != null) updateData.pagado_con = pagado_con;
     }
 
-    const { data: ordenActualizada, error } = await supabase
+    const ordenActualizadaRaw = await (supabase as any)
       .from("ordenes")
       .update(updateData)
       .eq("id", ordenId)
       .eq("sucursal_id", sucursalId)
       .select()
       .single();
+    const ordenActualizada = ordenActualizadaRaw.data as { mesa_id: number } | null;
+    const error = ordenActualizadaRaw.error;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -134,11 +139,11 @@ export async function PATCH(
         cerrado_por_id: user.id,
         metodo_pago: updateData.metodo_pago,
       };
-      await supabase.from("ordenes").update(subUpdate).in("id", subIds);
+      await (supabase as any).from("ordenes").update(subUpdate).in("id", subIds);
     }
 
     if (estado === "cerrado" && esPadre && ordenActualizada?.mesa_id) {
-      await supabase
+      await (supabase as any)
         .from("mesas")
         .update({ estado: "disponible" })
         .eq("id", ordenActualizada.mesa_id);

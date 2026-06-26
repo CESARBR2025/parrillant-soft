@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getServerSucursalId } from '@/lib/sucursal';
 import { TableMap } from '@/components/mesas/TableMap';
 import { MapaHeader } from '@/components/mesas/MapaHeader';
+import type { Tables } from '@/types/database.types';
 
 export default async function MapaPage({
   params,
@@ -18,20 +19,22 @@ export default async function MapaPage({
   const sucursalId = await getServerSucursalId();
   if (!sucursalId) redirect(`/${sucursalSlug}/mesero`);
 
-  const { data: mesas } = await supabase
+  const mesasRaw = await supabase
     .from('mesas')
     .select('id, numero, zona, capacidad, estado')
     .eq('sucursal_id', sucursalId)
     .order('numero');
+  const mesas: Tables<'mesas'>[] = (mesasRaw.data ?? []) as Tables<'mesas'>[];
 
-  const { data: ordenesActivas } = await supabase
+  const ordenesActivasRaw = await supabase
     .from('ordenes')
     .select('id, mesa_id, created_at, estado, comensales, orden_padre_id')
     .eq('sucursal_id', sucursalId)
     .in('estado', ['pendiente', 'en_preparacion', 'listo', 'entregado', 'cuenta_solicitada']);
+  const ordenesActivas: Tables<'ordenes'>[] = (ordenesActivasRaw.data ?? []) as Tables<'ordenes'>[];
 
   const ordenesPorMesa = new Map<number, { id: number; created_at: string; orden_estado: string; comensales: number | null }>();
-  for (const o of ordenesActivas ?? []) {
+  for (const o of ordenesActivas) {
     if (!o.orden_padre_id) {
       ordenesPorMesa.set(o.mesa_id, {
         id: o.id,

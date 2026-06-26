@@ -17,11 +17,12 @@ export default async function AdminUsuariosPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await supabase
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil || perfil.rol !== 'super_admin') {
     redirect('/admin');
@@ -34,23 +35,24 @@ export default async function AdminUsuariosPage() {
     emails[u.id] = u.email ?? '—';
   }
 
-  const { data: perfiles } = await supabase
+  const perfilesRaw = await supabase
     .from('perfiles')
     .select('*')
     .order('nombre');
 
-  const { data: asignaciones } = await supabase
+  const asignacionesRaw = await supabase
     .from('usuario_sucursales')
     .select('usuario_id, sucursales!inner(id, slug, nombre)');
+  const asignaciones: { usuario_id: string; sucursales: { id: string; slug: string; nombre: string } }[] = (asignacionesRaw.data ?? []) as any;
 
   const sucursalesPorUsuario: Record<string, { id: string; slug: string; nombre: string }[]> = {};
-  for (const a of asignaciones ?? []) {
+  for (const a of asignaciones) {
     const sid = a.usuario_id;
     if (!sucursalesPorUsuario[sid]) sucursalesPorUsuario[sid] = [];
-    sucursalesPorUsuario[sid].push(a.sucursales as unknown as { id: string; slug: string; nombre: string });
+    sucursalesPorUsuario[sid].push(a.sucursales);
   }
 
-  const { data: sucursales } = await supabase
+  const sucursalesRaw = await supabase
     .from('sucursales')
     .select('*')
     .eq('activa', true)
@@ -66,14 +68,14 @@ export default async function AdminUsuariosPage() {
           ← Panel Global
         </a>
         <h1 className="text-xl font-bold text-text-primary">Usuarios</h1>
-        <p className="text-sm text-muted mt-1">{perfiles?.length ?? 0} usuarios registrados</p>
+        <p className="text-sm text-muted mt-1">{perfilesRaw.data?.length ?? 0} usuarios registrados</p>
       </div>
 
       <AdminUsuariosClient
-        initialUsuarios={(perfiles ?? []) as any[]}
+        initialUsuarios={(perfilesRaw.data ?? []) as any[]}
         emails={emails}
         sucursalesPorUsuario={sucursalesPorUsuario}
-        sucursales={(sucursales ?? []) as any[]}
+        sucursales={(sucursalesRaw.data ?? []) as any[]}
       />
     </div>
   );

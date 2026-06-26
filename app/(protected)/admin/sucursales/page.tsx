@@ -11,37 +11,40 @@ export default async function AdminSucursalesPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await supabase
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil || perfil.rol !== 'super_admin') {
     redirect('/admin');
   }
 
-  const { data: sucursales } = await supabase
+  const sucursalesRaw = await supabase
     .from('sucursales')
     .select('*')
     .order('nombre');
+  const sucursales = sucursalesRaw.data as unknown as Tables<'sucursales'>[] | null;
 
-  const { data: categoriasRaw } = await supabase
+  const categoriasRaw = await supabase
     .from('categorias')
     .select('sucursal_id');
-  const categorias = categoriasRaw as unknown as { sucursal_id: string }[];
+  const categorias: { sucursal_id: string }[] = categoriasRaw.data as unknown as { sucursal_id: string }[] ?? [];
 
-  const { data: mesas } = await supabase
+  const mesasRaw = await supabase
     .from('mesas')
     .select('sucursal_id');
+  const mesas: { sucursal_id: string }[] = mesasRaw.data as unknown as { sucursal_id: string }[] ?? [];
 
   const mesasPorSucursal: Record<string, number> = {};
-  for (const m of mesas ?? []) {
+  for (const m of mesas) {
     mesasPorSucursal[m.sucursal_id] = (mesasPorSucursal[m.sucursal_id] ?? 0) + 1;
   }
 
   const categoriasPorSucursal: Record<string, number> = {};
-  for (const c of categorias ?? []) {
+  for (const c of categorias) {
     categoriasPorSucursal[c.sucursal_id] = (categoriasPorSucursal[c.sucursal_id] ?? 0) + 1;
   }
 

@@ -15,11 +15,12 @@ export async function generarMesas(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'No autorizado' };
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await (supabase as any)
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil || (perfil.rol !== 'admin' && perfil.rol !== 'super_admin')) {
     return { error: 'No tienes permiso para generar mesas' };
@@ -38,7 +39,7 @@ export async function generarMesas(
     sucursal_id: sucursalId,
   }));
 
-  const { error } = await supabase.from('mesas').insert(mesas);
+  const { error } = await (supabase as any).from('mesas').insert(mesas);
 
   if (error) return { error: error.message };
 

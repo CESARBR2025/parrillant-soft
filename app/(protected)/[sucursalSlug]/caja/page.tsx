@@ -73,7 +73,7 @@ export default function CajaPage() {
       if (cancelled) return
 
       if (ordenesRes.data) {
-        const subIds = new Set((subsRes.data ?? []).map(s => s.orden_padre_id));
+        const subIds = new Set(((subsRes.data ?? []) as { orden_padre_id: number | null }[]).map(s => s.orden_padre_id));
 
         const enriched = await Promise.all(
           (ordenesRes.data as unknown as OrdenConSubs[]).map(async (orden) => {
@@ -103,9 +103,10 @@ export default function CajaPage() {
         setOrdenes(enriched);
       }
       if (cerradasRes.data) {
+        const cerradas = cerradasRes.data as { total: number | null }[];
         setResumen({
           totalVentas:
-            cerradasRes.data.reduce((acc, o) => acc + Number(o.total ?? 0), 0),
+            cerradas.reduce((acc, o) => acc + Number(o.total ?? 0), 0),
           ordenesCerradas: cerradasRes.count ?? 0,
         })
       }

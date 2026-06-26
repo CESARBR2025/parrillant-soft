@@ -18,13 +18,14 @@ export default async function MeseroDashboard({
   const sucursalId = await getServerSucursalId();
   if (!sucursalId) redirect(`/${sucursalSlug}/mesero`);
 
-  const { data: mesasOcupadas } = await supabase
+  const mesasOcupadasRaw = await supabase
     .from('ordenes')
     .select('mesa_id')
     .eq('sucursal_id', sucursalId)
     .in('estado', ['pendiente', 'en_preparacion', 'listo', 'entregado']);
+  const mesasOcupadas: { mesa_id: number }[] = mesasOcupadasRaw.data ?? [];
 
-  const mesasActivas = new Set(mesasOcupadas?.map(o => o.mesa_id) ?? []);
+  const mesasActivas = new Set(mesasOcupadas.map(o => o.mesa_id));
 
   const { count: ordenesHoy } = await supabase
     .from('ordenes')

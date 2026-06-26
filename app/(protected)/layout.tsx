@@ -19,11 +19,12 @@ export default async function ProtectedLayout({
     redirect('/login');
   }
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await supabase
     .from('perfiles')
     .select('id, rol, nombre, apellido, activo')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { id: string; rol: string; nombre: string | null; apellido: string | null; activo: boolean } | null;
 
   if (!perfil || !perfil.activo) {
     redirect('/login?error=cuenta_inactiva');

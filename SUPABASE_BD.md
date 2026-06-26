@@ -203,6 +203,73 @@ CREATE TRIGGER trg_on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ============================================================
+-- TABLA: aperturas_turno (programación de turnos por sucursal)
+-- ============================================================
+
+CREATE TABLE public.aperturas_turno (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sucursal_id UUID NOT NULL REFERENCES public.sucursales(id) ON DELETE CASCADE,
+  fecha DATE NOT NULL,
+  hora_inicio TIME NOT NULL,
+  hora_fin TIME NOT NULL,
+  activa BOOLEAN NOT NULL DEFAULT true,
+  recurrencia TEXT CHECK (recurrencia IN ('semanal', 'mensual')), -- NULL = día único
+  recurrencia_fin DATE, -- fecha fin de recurrencia
+  creada_por UUID REFERENCES public.perfiles(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_aperturas_turno_sucursal_fecha ON public.aperturas_turno(sucursal_id, fecha);
+CREATE INDEX idx_aperturas_turno_busqueda ON public.aperturas_turno(sucursal_id, fecha, activa) WHERE activa = true;
+
+COMMENT ON TABLE public.aperturas_turno IS 'Programación de ventanas de turno por sucursal. El admin define cuándo los meseros pueden registrar turno.';
+COMMENT ON COLUMN public.aperturas_turno.recurrencia IS 'NULL = día único, semanal = todos los días de la semana, mensual = todos los días del mes, anual = todos los días del año';
+COMMENT ON COLUMN public.aperturas_turno.recurrencia_fin IS 'Fecha fin de la recurrencia';
+
+-- ============================================================
+-- TABLA: aperturas_excepciones (modificaciones a días individuales)
+-- ============================================================
+
+CREATE TABLE public.aperturas_excepciones (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  apertura_id UUID NOT NULL REFERENCES public.aperturas_turno(id) ON DELETE CASCADE,
+  fecha DATE NOT NULL,
+  hora_inicio TIME NOT NULL,
+  hora_fin TIME NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_excepciones_apertura_fecha ON public.aperturas_excepciones(apertura_id, fecha);
+
+COMMENT ON TABLE public.aperturas_excepciones IS 'Modificaciones manuales a días específicos de una apertura recurrente.';
+
+-- ============================================================
+-- TABLA: turnos (registro individual de mesero)
+-- ============================================================
+
+CREATE TABLE public.turnos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  apertura_id UUID REFERENCES public.aperturas_turno(id),
+  usuario_id UUID NOT NULL REFERENCES public.perfiles(id) ON DELETE CASCADE,
+  sucursal_id UUID NOT NULL REFERENCES public.sucursales(id) ON DELETE CASCADE,
+  inicio TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  fin TIMESTAMPTZ,
+  activo BOOLEAN NOT NULL DEFAULT true,
+  reasignado_de UUID REFERENCES public.sucursales(id),
+  cerrado_por UUID REFERENCES public.perfiles(id),
+  notas TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_turnos_usuario_activo ON public.turnos(usuario_id, activo) WHERE activo = true;
+CREATE INDEX idx_turnos_sucursal_activo ON public.turnos(sucursal_id, activo) WHERE activo = true;
+
+COMMENT ON TABLE public.turnos IS 'Registro de turno de cada mesero. Activo mientras el mesero esté trabajando.';
+
+CREATE TRIGGER trg_turnos_updated_at BEFORE UPDATE ON public.turnos FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- ============================================================
 -- DATOS SEMILLA (seed)
 -- ============================================================
 
@@ -243,6 +310,8 @@ ALTER TABLE public.categorias      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.productos_menu  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ordenes         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.detalles_orden  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.aperturas_turno ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.turnos          ENABLE ROW LEVEL SECURITY;
 
 -- Politicas de perfiles
 -- Cualquier usuario autenticado puede ver su propio perfil
@@ -301,7 +370,59 @@ CREATE POLICY "productos_admin_full"
   USING (public.get_my_rol() IN ('super_admin', 'admin'));
 
 
-  -- Politicas para ordenes
+  -- Politicas para aperturas_turno
+-- Admin/super_admin: control total
+CREATE POLICY "aperturas_admin_full"
+  ON public.aperturas_turno FOR ALL TO authenticated
+  USING (public.get_my_rol() IN ('super_admin', 'admin'))
+  WITH CHECK (public.get_my_rol() IN ('super_admin', 'admin'));
+
+-- Mesero: solo ver aperturas activas del día
+CREATE POLICY "aperturas_select_mesero"
+  ON public.aperturas_turno FOR SELECT TO authenticated
+  USING (public.get_my_rol() = 'mesero' AND activa = true AND fecha = CURRENT_DATE);
+
+-- Otros: lectura general
+CREATE POLICY "aperturas_select_otros"
+  ON public.aperturas_turno FOR SELECT TO authenticated
+  USING (true);
+
+-- Politicas para aperturas_excepciones
+ALTER TABLE public.aperturas_excepciones ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "excepciones_admin_full"
+  ON public.aperturas_excepciones FOR ALL TO authenticated
+  USING (public.get_my_rol() IN ('super_admin', 'admin'))
+  WITH CHECK (public.get_my_rol() IN ('super_admin', 'admin'));
+
+CREATE POLICY "excepciones_select_mesero"
+  ON public.aperturas_excepciones FOR SELECT TO authenticated
+  USING (public.get_my_rol() = 'mesero');
+
+-- Politicas para turnos
+-- Admin: control total
+CREATE POLICY "turnos_admin_full"
+  ON public.turnos FOR ALL TO authenticated
+  USING (public.get_my_rol() IN ('super_admin', 'admin'))
+  WITH CHECK (public.get_my_rol() IN ('super_admin', 'admin'));
+
+-- Mesero: solo sus propios turnos
+CREATE POLICY "turnos_select_mesero"
+  ON public.turnos FOR SELECT TO authenticated
+  USING (public.get_my_rol() = 'mesero' AND usuario_id = auth.uid());
+
+-- Mesero: puede registrar su turno
+CREATE POLICY "turnos_insert_mesero"
+  ON public.turnos FOR INSERT TO authenticated
+  WITH CHECK (public.get_my_rol() = 'mesero' AND usuario_id = auth.uid());
+
+-- Mesero: cerrar su propio turno
+CREATE POLICY "turnos_update_mesero"
+  ON public.turnos FOR UPDATE TO authenticated
+  USING (public.get_my_rol() = 'mesero' AND usuario_id = auth.uid() AND activo = true)
+  WITH CHECK (usuario_id = auth.uid() AND (activo = false OR fin IS NOT NULL));
+
+-- Politicas para ordenes
   -- Meseros: solo ven sus propias órdenes activas
 CREATE POLICY "ordenes_select_mesero"
   ON public.ordenes FOR SELECT

@@ -80,7 +80,7 @@ export default async function MesaOrdenPage({
         productos_menu (nombre, precio)
       )
     `)
-    .eq('orden_padre_id', ordenPadre.id)
+    .eq('orden_padre_id', (ordenPadre as unknown as { id: number }).id)
     .in('estado', ESTADOS_ACTIVOS)
     .order('created_at', { ascending: true });
 

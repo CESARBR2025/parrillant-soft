@@ -10,11 +10,12 @@ export async function marcarOrdenLista(ordenId: number) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'No autorizado' };
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await (supabase as any)
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil) return { error: 'Perfil no encontrado' };
 
@@ -23,11 +24,12 @@ export async function marcarOrdenLista(ordenId: number) {
     return { error: 'No tienes permiso para marcar órdenes como listas' };
   }
 
-  const { data: orden } = await supabase
+  const ordenRaw = await (supabase as any)
     .from('ordenes')
     .select('id, estado')
     .eq('id', ordenId)
     .single();
+  const orden = ordenRaw.data as { id: number; estado: string } | null;
 
   if (!orden) return { error: 'Orden no encontrada' };
 
@@ -62,7 +64,7 @@ export async function marcarOrdenLista(ordenId: number) {
   // Solo marcar la orden como listo si no quedan items pendientes
   const hayPendientes = (pendientes ?? []).length > 0;
   if (!hayPendientes || !tipoEstacion) {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('ordenes')
       .update({ estado: 'listo' })
       .eq('id', ordenId);
