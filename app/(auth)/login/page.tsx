@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Mail, Lock, LogIn, Loader2, AlertCircle } from 'lucide-react';
+import { Mail, Lock, LogIn, Loader2, AlertCircle, Store, Clock, CheckCircle2 } from 'lucide-react';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
-import type { Rol } from '@/types/roles';
+import type { Rol, Sucursal } from '@/types/roles';
 import { RUTA_INICIO_POR_ROL } from '@/types/roles';
+import { registrarTurno, obtenerTurnoActivo } from '@/app/actions/turnos';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -15,6 +16,20 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    const [sucursales, setSucursales] = useState<Sucursal[]>([]);
+    const [selectedSucursal, setSelectedSucursal] = useState<string | null>(null);
+    const [userRol, setUserRol] = useState<Rol | null>(null);
+    const [step, setStep] = useState<'login' | 'sucursal'>('login');
+    const [registrandoTurno, setRegistrandoTurno] = useState<string | null>(null);
+    const [confirmarSucursal, setConfirmarSucursal] = useState<Sucursal | null>(null);
+
+    useEffect(() => {
+        if (step === 'sucursal' && userRol && userRol !== 'mesero' && sucursales.length === 1) {
+            const ruta = RUTA_INICIO_POR_ROL[userRol] ?? '/mesero';
+            router.push(`/${sucursales[0].slug}${ruta}`);
+        }
+    }, [step, sucursales, userRol, router]);
 
     async function handleLogin(e: React.FormEvent) {
         e.preventDefault();
@@ -32,11 +47,12 @@ export default function LoginPage() {
             return;
         }
 
-        const { data: perfil } = await supabase
+        const { data: perfilRaw } = await supabase
             .from('perfiles')
             .select('rol, activo')
             .eq('id', data.user.id)
             .single();
+        const perfil = perfilRaw as { rol: string; activo: boolean } | null;
 
         if (!perfil?.activo) {
             await supabase.auth.signOut();
@@ -45,8 +61,252 @@ export default function LoginPage() {
             return;
         }
 
-        const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol] ?? '/';
-        router.push(rutaInicio);
+        const rol = perfil.rol as Rol;
+
+        if (rol === 'super_admin' || rol === 'admin') {
+            router.push('/admin');
+            return;
+        }
+
+        const userSucursalesRaw = await supabase
+            .from('usuario_sucursales')
+            .select('sucursales!inner(id, slug, nombre)');
+        const userSucursales: { sucursales: { id: string; slug: string; nombre: string } }[] = userSucursalesRaw.data ?? [];
+
+        const sucs = userSucursales.map(s => s.sucursales);
+
+        if (sucs.length === 0) {
+            await supabase.auth.signOut();
+            setError('No tienes sucursales asignadas. Contacta al administrador.');
+            setLoading(false);
+            return;
+        }
+
+        if (rol === 'mesero') {
+            // Si ya tiene un turno activo, ir directo al dashboard
+            const { slug } = await obtenerTurnoActivo(data.session?.access_token);
+            if (slug) {
+                router.push(`/${slug}/mesero`);
+                return;
+            }
+
+            const hoy = new Date().toISOString().split('T')[0];
+            const horaActual = new Date().toTimeString().slice(0, 5);
+            const sucsIds = sucs.map(s => s.id);
+
+            console.log('[login] debug:', { sucs, hoy, horaActual, sucsIds });
+
+            // Aperturas de día único (fecha = hoy)
+            const unicasRaw = await supabase
+                .from('aperturas_turno')
+                .select('sucursal_id')
+                .in('sucursal_id', sucsIds)
+                .eq('fecha', hoy)
+                .lte('hora_inicio', horaActual)
+                .gte('hora_fin', horaActual)
+                .eq('activa', true);
+            const unicas: { sucursal_id: string }[] = unicasRaw.data ?? [];
+            console.log('[login] unicas:', unicas, 'error:', unicasRaw.error);
+
+            // Aperturas recurrentes activas hoy (fecha <= hoy, recurrencia_fin >= hoy)
+            const recurrentesRaw = await (supabase as any)
+                .from('aperturas_turno')
+                .select('id, sucursal_id, hora_inicio, hora_fin')
+                .in('sucursal_id', sucsIds)
+                .lte('fecha', hoy)
+                .gte('recurrencia_fin', hoy)
+                .eq('activa', true)
+                .not('recurrencia', 'is', null);
+            const recurrentes: { id: string; sucursal_id: string; hora_inicio: string; hora_fin: string }[] = recurrentesRaw.data ?? [];
+            console.log('[login] recurrentes:', recurrentes, 'error:', recurrentesRaw.error);
+
+            const sucursalesConApertura = new Set(unicas.map(a => a.sucursal_id));
+
+            for (const r of recurrentes) {
+                if (sucursalesConApertura.has(r.sucursal_id)) continue;
+                const excRaw = await (supabase as any)
+                    .from('aperturas_excepciones')
+                    .select('hora_inicio, hora_fin')
+                    .eq('apertura_id', r.id)
+                    .eq('fecha', hoy)
+                    .maybeSingle();
+                const exc = excRaw.data as { hora_inicio: string; hora_fin: string } | null;
+                const hi = exc?.hora_inicio ?? r.hora_inicio;
+                const hf = exc?.hora_fin ?? r.hora_fin;
+                if (hi <= horaActual && hf >= horaActual) {
+                    sucursalesConApertura.add(r.sucursal_id);
+                }
+            }
+
+            console.log('[login] sucursalesConApertura:', [...sucursalesConApertura]);
+
+            const sucsFiltradas = sucs.filter(s => sucursalesConApertura.has(s.id));
+
+            console.log('[login] sucsFiltradas:', sucsFiltradas);
+
+            if (sucsFiltradas.length === 0) {
+                await supabase.auth.signOut();
+                setError('No hay turnos abiertos en tus sucursales en este momento. Contacta al administrador.');
+                setLoading(false);
+                return;
+            }
+
+            setSucursales(sucsFiltradas);
+        } else {
+            setSucursales(sucs);
+        }
+
+        setUserRol(rol);
+        setStep('sucursal');
+        setLoading(false);
+    }
+
+    async function handleConfirmarRegistro() {
+        if (!confirmarSucursal) return;
+        setRegistrandoTurno(confirmarSucursal.id);
+        setError(null);
+        const result = await registrarTurno(confirmarSucursal.id, confirmarSucursal.slug);
+        setRegistrandoTurno(null);
+        if (result.error) {
+            setError(result.error);
+            setConfirmarSucursal(null);
+        } else {
+            setConfirmarSucursal(null);
+            router.push(`/${confirmarSucursal.slug}/mesero`);
+        }
+    }
+
+    function handleSelectSucursal(slug: string) {
+        setSelectedSucursal(slug);
+        const ruta = RUTA_INICIO_POR_ROL[userRol!] ?? '/mesero';
+        router.push(`/${slug}${ruta}`);
+    }
+
+    if (confirmarSucursal) {
+        return (
+            <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-accent-light via-bg-app to-bg-app">
+                <div className="w-full max-w-sm">
+                    <div className="text-center mb-10">
+                        <Image
+                            src="/parrillalogo.png"
+                            alt="Parrilla Norteña Soft"
+                            width={120}
+                            height={120}
+                            priority
+                            unoptimized
+                            className="mx-auto mb-4 drop-shadow-[0_0_30px_rgba(249,115,22,0.15)]"
+                        />
+                    </div>
+
+                    <div className="bg-bg-card rounded-2xl border-2 border-border-default p-8 shadow-card text-center">
+                        <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                            <Clock className="w-8 h-8 text-accent" />
+                        </div>
+                        <h2 className="text-xl font-bold text-text-primary mb-2">
+                            ¿Registrar turno?
+                        </h2>
+                        <p className="text-sm text-muted mb-6">
+                            Vas a registrar tu entrada en <strong className="text-text-primary">{confirmarSucursal.nombre}</strong>
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setConfirmarSucursal(null)}
+                                className="flex-1 rounded-xl border-2 border-border-default px-4 py-3 text-sm font-medium text-text-primary hover:bg-bg-base transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleConfirmarRegistro}
+                                disabled={registrandoTurno === confirmarSucursal.id}
+                                className="flex-1 bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {registrandoTurno === confirmarSucursal.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <CheckCircle2 className="w-4 h-4" />
+                                )}
+                                {registrandoTurno === confirmarSucursal.id ? 'Registrando...' : 'Confirmar'}
+                            </button>
+                        </div>
+                        {error && (
+                            <div className="mt-4 flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm font-medium bg-danger/10 text-danger border border-danger/20">
+                                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                                <span>{error}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </main>
+        );
+    }
+
+    if (step === 'sucursal') {
+        return (
+            <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-accent-light via-bg-app to-bg-app">
+                <div className="w-full max-w-sm">
+                    <div className="text-center mb-10">
+                        <Image
+                            src="/parrillalogo.png"
+                            alt="Parrilla Norteña Soft"
+                            width={120}
+                            height={120}
+                            priority
+                            unoptimized
+                            className="mx-auto mb-4 drop-shadow-[0_0_30px_rgba(249,115,22,0.15)]"
+                        />
+                        <h1 className="text-2xl font-bold tracking-tight">
+                            <span className="text-text-primary">Selecciona </span>
+                            <span className="bg-gradient-to-r from-accent to-amber-400 bg-clip-text text-transparent">
+                                Sucursal
+                            </span>
+                        </h1>
+                    </div>
+
+                    <div className="space-y-3">
+                        {sucursales.map(s => (
+                            <div
+                                key={s.id}
+                                className="w-full bg-bg-card rounded-2xl border-2 border-border-default p-5
+                                    hover:border-accent/50 hover:bg-accent/5 transition-all
+                                    flex items-center gap-4 text-left"
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                                    <Store className="w-6 h-6 text-accent" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-text-primary">{s.nombre}</p>
+                                    <p className="text-xs text-muted">{s.slug}</p>
+                                </div>
+                                {userRol === 'mesero' ? (
+                                    <button
+                                        onClick={() => setConfirmarSucursal(s)}
+                                        className="shrink-0 bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors flex items-center gap-1.5"
+                                    >
+                                        <Clock className="w-4 h-4" />
+                                        Registrar turno
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleSelectSucursal(s.slug)}
+                                        disabled={selectedSucursal === s.slug}
+                                        className="shrink-0 bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-50"
+                                    >
+                                        Entrar
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {error && (
+                        <div className="mt-4 flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm font-medium bg-danger/10 text-danger border border-danger/20">
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>{error}</span>
+                        </div>
+                    )}
+                </div>
+            </main>
+        );
     }
 
     return (

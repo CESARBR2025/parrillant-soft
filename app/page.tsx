@@ -12,16 +12,36 @@ export default async function Home() {
     redirect('/login');
   }
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await (supabase as any)
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil) {
     redirect('/login');
   }
 
-  const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol] ?? '/mesero';
-  redirect(rutaInicio);
+  const rol = perfil.rol as Rol;
+
+  if (rol === 'super_admin' || rol === 'admin') {
+    redirect('/admin');
+  }
+
+  const userSucursalesRaw = await (supabase as any)
+    .from('usuario_sucursales')
+    .select('sucursales!inner(slug)')
+    .eq('usuario_id', user.id)
+    .limit(1);
+  const userSucursales = userSucursalesRaw.data;
+
+  const slug = (userSucursales?.[0] as unknown as { sucursales: { slug: string } })?.sucursales?.slug;
+
+  if (!slug) {
+    redirect('/login');
+  }
+
+  const rutaInicio = RUTA_INICIO_POR_ROL[rol] ?? '/mesero';
+  redirect(`/${slug}${rutaInicio}`);
 }

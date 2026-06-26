@@ -1,9 +1,8 @@
-// src/app/api/ordenes/[id]/estado/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getServerSucursalId } from "@/lib/sucursal";
 import { Database } from "@/types/database.types";
 
-// Transiciones de estado permitidas por rol
 const TRANSICIONES_VALIDAS: Record<string, string[]> = {
   mesero: ["en_preparacion", "entregado", "cuenta_solicitada", "cancelado"],
   cocina: ["en_preparacion", "listo"],
@@ -40,47 +39,44 @@ export async function PATCH(
     const { estado, metodo_pago, pagado_con } = await request.json();
     const supabase = await createServerSupabaseClient();
 
-    // Verificar autenticación
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // Obtener rol del usuario
-    const { data: perfil } = await supabase
+    const sucursalId = await getServerSucursalId();
+    if (!sucursalId) {
+      return NextResponse.json({ error: "Sucursal no identificada" }, { status: 400 });
+    }
+
+    const perfilRaw = await (supabase as any)
       .from("perfiles")
       .select("rol")
       .eq("id", user.id)
       .single();
+    const perfil = perfilRaw.data as { rol: string } | null;
 
     if (!perfil) {
-      return NextResponse.json(
-        { error: "Perfil no encontrado" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
     }
 
-    // Validar que la transición esté permitida para este rol
     const transicionesPermitidas = TRANSICIONES_VALIDAS[perfil.rol] ?? [];
     if (!transicionesPermitidas.includes(estado)) {
       return NextResponse.json(
-        {
-          error: `El rol '${perfil.rol}' no puede cambiar a estado '${estado}'`,
-        },
+        { error: `El rol '${perfil.rol}' no puede cambiar a estado '${estado}'` },
         { status: 403 },
       );
     }
 
     const ordenId = Number(id);
 
-    // Check if this is a parent order (has sub-orders)
-    const { data: orden } = await supabase
+    const ordenRaw = await (supabase as any)
       .from("ordenes")
       .select("id, mesa_id, orden_padre_id")
       .eq("id", ordenId)
+      .eq("sucursal_id", sucursalId)
       .single();
+    const orden = ordenRaw.data as { id: number; mesa_id: number; orden_padre_id: number | null } | null;
 
     if (!orden) {
       return NextResponse.json({ error: "Orden no encontrada" }, { status: 404 });
@@ -88,23 +84,22 @@ export async function PATCH(
 
     const esPadre = orden.orden_padre_id === null;
 
-    // Get sub-order IDs if this is a parent
     let subIds: number[] = [];
     if (esPadre) {
-      const { data: subs } = await supabase
+      const subsRaw = await (supabase as any)
         .from("ordenes")
         .select("id")
         .eq("orden_padre_id", ordenId);
+      const subs = subsRaw.data as { id: number }[] | null;
       subIds = (subs ?? []).map(s => s.id);
     }
 
     const updateData: OrdenUpdate = {};
     updateData.estado = estado;
 
-    // Si se cierra, calcular total consolidado y registrar quién cerró
     if (estado === "cerrado") {
       const calcTotal = async (oid: number): Promise<number> => {
-        const { data: detalles } = await supabase
+        const { data: detalles } = await (supabase as any)
           .from("detalles_orden")
           .select("cantidad, precio_unitario")
           .eq("orden_id", oid);
@@ -114,7 +109,6 @@ export async function PATCH(
 
       let total = await calcTotal(ordenId);
 
-      // Include sub-order totals
       for (const subId of subIds) {
         total += await calcTotal(subId);
       }
@@ -125,33 +119,31 @@ export async function PATCH(
       if (pagado_con != null) updateData.pagado_con = pagado_con;
     }
 
-    const { data: ordenActualizada, error } = await supabase
+    const ordenActualizadaRaw = await (supabase as any)
       .from("ordenes")
       .update(updateData)
       .eq("id", ordenId)
+      .eq("sucursal_id", sucursalId)
       .select()
       .single();
+    const ordenActualizada = ordenActualizadaRaw.data as { mesa_id: number } | null;
+    const error = ordenActualizadaRaw.error;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    // If parent is being closed, also close all sub-orders
     if (esPadre && estado === "cerrado" && subIds.length > 0) {
       const subUpdate: OrdenUpdate = {
         estado: "cerrado",
         cerrado_por_id: user.id,
         metodo_pago: updateData.metodo_pago,
       };
-      await supabase.from("ordenes").update(subUpdate).in("id", subIds);
+      await (supabase as any).from("ordenes").update(subUpdate).in("id", subIds);
     }
 
-    // If this is a sub-order being closed independently (shouldn't normally happen), close it
-    // but DON'T free the mesa (parent order still active)
-
-    // Only free the mesa if this is a parent order
     if (estado === "cerrado" && esPadre && ordenActualizada?.mesa_id) {
-      await supabase
+      await (supabase as any)
         .from("mesas")
         .update({ estado: "disponible" })
         .eq("id", ordenActualizada.mesa_id);

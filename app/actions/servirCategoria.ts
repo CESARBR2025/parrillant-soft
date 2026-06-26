@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalSlug } from '@/lib/sucursal';
 
 export async function servirCategoria(
   ordenId: number,
@@ -15,11 +16,12 @@ export async function servirCategoria(
     return { error: 'No autorizado' };
   }
 
-  const { data: orden } = await supabase
+  const ordenRaw = await (supabase as any)
     .from('ordenes')
     .select('id, estado')
     .eq('id', ordenId)
     .single();
+  const orden = ordenRaw.data as { id: number; estado: string } | null;
 
   if (!orden) {
     return { error: 'Orden no encontrada' };
@@ -30,7 +32,7 @@ export async function servirCategoria(
   }
 
   // Mark items of this tipo (and ronda if specified) as served
-  let markQuery = supabase
+  let markQuery = (supabase as any)
     .from('detalles_orden')
     .update({ servido: true })
     .eq('orden_id', ordenId)
@@ -48,7 +50,7 @@ export async function servirCategoria(
   }
 
   // Check if all items in the order are served
-  const { data: remaining, error: remainingError } = await supabase
+  const { data: remaining, error: remainingError } = await (supabase as any)
     .from('detalles_orden')
     .select('id')
     .eq('orden_id', ordenId)
@@ -60,20 +62,21 @@ export async function servirCategoria(
 
   if (remaining.length === 0) {
     // All served — transition to entregado
-    await supabase
+    await (supabase as any)
       .from('ordenes')
       .update({ estado: 'entregado', alimentos_servidos: true, bebidas_servidos: true })
       .eq('id', ordenId);
   } else {
     // Update the order-level flag for this tipo
-    await supabase
+    await (supabase as any)
       .from('ordenes')
       .update(tipo === 'alimento' ? { alimentos_servidos: true } : { bebidas_servidos: true })
       .eq('id', ordenId);
   }
 
-  revalidatePath('/mesero');
-  revalidatePath('/barra');
+  const slug = await getServerSucursalSlug();
+  revalidatePath(`/${slug}/mesero`);
+  revalidatePath(`/${slug}/barra`);
 
   return { success: true };
 }

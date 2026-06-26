@@ -6,6 +6,43 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+export interface AperturaTurno {
+  id: string;
+  sucursal_id: string;
+  fecha: string;
+  hora_inicio: string;
+  hora_fin: string;
+  activa: boolean;
+  recurrencia: string | null;
+  recurrencia_fin: string | null;
+  creada_por: string | null;
+  created_at: string;
+}
+
+export interface AperturaExcepcion {
+  id: string;
+  apertura_id: string;
+  fecha: string;
+  hora_inicio: string;
+  hora_fin: string;
+  created_at: string;
+}
+
+export interface Turno {
+  id: string;
+  apertura_id: string | null;
+  usuario_id: string;
+  sucursal_id: string;
+  inicio: string;
+  fin: string | null;
+  activo: boolean;
+  reasignado_de: string | null;
+  cerrado_por: string | null;
+  notas: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -39,61 +76,12 @@ export type Database = {
           nombre?: string;
           orden?: number;
         };
-        Relationships: [];
-      };
-      detalles_orden: {
-        Row: {
-          cantidad: number;
-          created_at: string;
-          id: number;
-          listo: boolean;
-          notas: string | null;
-          orden_id: number;
-          precio_unitario: number;
-          producto_id: number;
-          ronda: number;
-          servido: boolean;
-          tipo: Database["public"]["Enums"]["tipo_producto"];
-        };
-        Insert: {
-          cantidad?: number;
-          created_at?: string;
-          id?: number;
-          listo?: boolean;
-          notas?: string | null;
-          orden_id: number;
-          precio_unitario: number;
-          producto_id: number;
-          ronda?: number;
-          servido?: boolean;
-          tipo: Database["public"]["Enums"]["tipo_producto"];
-        };
-        Update: {
-          cantidad?: number;
-          created_at?: string;
-          id?: number;
-          listo?: boolean;
-          notas?: string | null;
-          orden_id?: number;
-          precio_unitario?: number;
-          producto_id?: number;
-          ronda?: number;
-          servido?: boolean;
-          tipo?: Database["public"]["Enums"]["tipo_producto"];
-        };
         Relationships: [
           {
-            foreignKeyName: "detalles_orden_orden_id_fkey";
-            columns: ["orden_id"];
+            foreignKeyName: "categorias_sucursal_id_fkey";
+            columns: ["sucursal_id"];
             isOneToOne: false;
-            referencedRelation: "ordenes";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "detalles_orden_producto_id_fkey";
-            columns: ["producto_id"];
-            isOneToOne: false;
-            referencedRelation: "productos_menu";
+            referencedRelation: "sucursales";
             referencedColumns: ["id"];
           },
         ];
@@ -105,6 +93,7 @@ export type Database = {
           estado: Database["public"]["Enums"]["estado_mesa"];
           id: number;
           numero: number;
+          sucursal_id: string;
           updated_at: string;
           zona: string | null;
         };
@@ -114,6 +103,7 @@ export type Database = {
           estado?: Database["public"]["Enums"]["estado_mesa"];
           id?: number;
           numero: number;
+          sucursal_id: string;
           updated_at?: string;
           zona?: string | null;
         };
@@ -123,10 +113,19 @@ export type Database = {
           estado?: Database["public"]["Enums"]["estado_mesa"];
           id?: number;
           numero?: number;
+          sucursal_id?: string;
           updated_at?: string;
           zona?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "mesas_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       ordenes: {
         Row: {
@@ -143,6 +142,7 @@ export type Database = {
           notas: string | null;
           orden_padre_id: number | null;
           pagado_con: number | null;
+          sucursal_id: string;
           total: number | null;
           updated_at: string;
         };
@@ -160,6 +160,7 @@ export type Database = {
           notas?: string | null;
           orden_padre_id?: number | null;
           pagado_con?: number | null;
+          sucursal_id: string;
           total?: number | null;
           updated_at?: string;
         };
@@ -177,6 +178,7 @@ export type Database = {
           notas?: string | null;
           orden_padre_id?: number | null;
           pagado_con?: number | null;
+          sucursal_id?: string;
           total?: number | null;
           updated_at?: string;
         };
@@ -207,6 +209,266 @@ export type Database = {
             columns: ["orden_padre_id"];
             isOneToOne: false;
             referencedRelation: "ordenes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ordenes_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      aperturas_turno: {
+        Row: AperturaTurno;
+        Insert: {
+          id?: string;
+          sucursal_id: string;
+          fecha: string;
+          hora_inicio: string;
+          hora_fin: string;
+          activa?: boolean;
+          recurrencia?: string | null;
+          recurrencia_fin?: string | null;
+          creada_por?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          sucursal_id?: string;
+          fecha?: string;
+          hora_inicio?: string;
+          hora_fin?: string;
+          activa?: boolean;
+          recurrencia?: string | null;
+          recurrencia_fin?: string | null;
+          creada_por?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "aperturas_turno_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "aperturas_turno_creada_por_fkey";
+            columns: ["creada_por"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      aperturas_excepciones: {
+        Row: AperturaExcepcion;
+        Insert: {
+          id?: string;
+          apertura_id: string;
+          fecha: string;
+          hora_inicio: string;
+          hora_fin: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          apertura_id?: string;
+          fecha?: string;
+          hora_inicio?: string;
+          hora_fin?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "aperturas_excepciones_apertura_id_fkey";
+            columns: ["apertura_id"];
+            isOneToOne: false;
+            referencedRelation: "aperturas_turno";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      registro_turnos_personal: {
+        Row: Turno;
+        Insert: {
+          id?: string;
+          apertura_id?: string | null;
+          usuario_id: string;
+          sucursal_id: string;
+          inicio?: string;
+          fin?: string | null;
+          activo?: boolean;
+          reasignado_de?: string | null;
+          cerrado_por?: string | null;
+          notas?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          apertura_id?: string | null;
+          usuario_id?: string;
+          sucursal_id?: string;
+          inicio?: string;
+          fin?: string | null;
+          activo?: boolean;
+          reasignado_de?: string | null;
+          cerrado_por?: string | null;
+          notas?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "turnos_apertura_id_fkey";
+            columns: ["apertura_id"];
+            isOneToOne: false;
+            referencedRelation: "aperturas_turno";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_usuario_id_fkey";
+            columns: ["usuario_id"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_cerrado_por_fkey";
+            columns: ["cerrado_por"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      turnos: {
+        Row: Turno;
+        Insert: {
+          id?: string;
+          apertura_id?: string | null;
+          usuario_id: string;
+          sucursal_id: string;
+          inicio?: string;
+          fin?: string | null;
+          activo?: boolean;
+          reasignado_de?: string | null;
+          cerrado_por?: string | null;
+          notas?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          apertura_id?: string | null;
+          usuario_id?: string;
+          sucursal_id?: string;
+          inicio?: string;
+          fin?: string | null;
+          activo?: boolean;
+          reasignado_de?: string | null;
+          cerrado_por?: string | null;
+          notas?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "turnos_apertura_id_fkey";
+            columns: ["apertura_id"];
+            isOneToOne: false;
+            referencedRelation: "aperturas_turno";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_usuario_id_fkey";
+            columns: ["usuario_id"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "turnos_cerrado_por_fkey";
+            columns: ["cerrado_por"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sucursales: {
+        Row: {
+          id: string;
+          slug: string;
+          nombre: string;
+          direccion: string | null;
+          activa: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          nombre: string;
+          direccion?: string | null;
+          activa?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          nombre?: string;
+          direccion?: string | null;
+          activa?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      usuario_sucursales: {
+        Row: {
+          usuario_id: string;
+          sucursal_id: string;
+          created_at: string;
+        };
+        Insert: {
+          usuario_id: string;
+          sucursal_id: string;
+          created_at?: string;
+        };
+        Update: {
+          usuario_id?: string;
+          sucursal_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "usuario_sucursales_usuario_id_fkey";
+            columns: ["usuario_id"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "usuario_sucursales_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
             referencedColumns: ["id"];
           },
         ];
@@ -251,6 +513,7 @@ export type Database = {
           imagen_url: string | null;
           nombre: string;
           precio: number;
+          sucursal_id: string;
           tipo: Database["public"]["Enums"]["tipo_producto"];
           updated_at: string;
         };
@@ -263,6 +526,7 @@ export type Database = {
           imagen_url?: string | null;
           nombre: string;
           precio: number;
+          sucursal_id: string;
           tipo?: Database["public"]["Enums"]["tipo_producto"];
           updated_at?: string;
         };
@@ -275,6 +539,7 @@ export type Database = {
           imagen_url?: string | null;
           nombre?: string;
           precio?: number;
+          sucursal_id?: string;
           tipo?: Database["public"]["Enums"]["tipo_producto"];
           updated_at?: string;
         };
@@ -284,6 +549,13 @@ export type Database = {
             columns: ["categoria_id"];
             isOneToOne: false;
             referencedRelation: "categorias";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "productos_menu_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
             referencedColumns: ["id"];
           },
         ];

@@ -21,11 +21,11 @@ export default function RootLayout({
         {children}
         <Toaster
           position="top-right"
+          richColors
+          closeButton
           toastOptions={{
             style: {
-              background: '#FFFFFF',
               border: '1px solid #EBEBEB',
-              color: '#1A1A1A',
             },
           }}
         />

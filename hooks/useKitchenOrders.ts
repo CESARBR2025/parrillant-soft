@@ -2,12 +2,21 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
+import { useSucursal } from '@/components/providers/SucursalProvider';
 import type { Database } from '@/types/database.types';
 
 type OnNewOrderCallback = () => void;
 
 type OrdenRow = Database['public']['Tables']['ordenes']['Row'];
-type DetalleRow = Database['public']['Tables']['detalles_orden']['Row'];
+type DetalleRow = {
+  id: number;
+  cantidad: number;
+  notas: string | null;
+  listo: boolean;
+  tipo: string;
+  producto_id: number | null;
+  orden_id: number;
+};
 
 export interface KitchenItem {
   id: number;
@@ -55,6 +64,7 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState<number>(() => Date.now());
+  const sucursal = useSucursal();
   const channelRef = useRef<ReturnType<ReturnType<typeof createClientSupabaseClient>['channel']> | null>(null);
   const prevOrderIdsRef = useRef<Set<number>>(new Set());
   const isFirstLoadRef = useRef(true);
@@ -62,6 +72,8 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
   useEffect(() => { onNewOrderRef.current = onNewOrder; }, [onNewOrder]);
 
   const fetchOrders = useCallback(async () => {
+    if (!sucursal?.id) return;
+
     const supabase = createClientSupabaseClient();
 
     const { data } = await supabase
@@ -84,6 +96,7 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
           productos_menu (nombre)
         )
       `)
+      .eq('sucursal_id', sucursal.id)
       .in('estado', ['pendiente', 'en_preparacion', 'listo'])
       .order('created_at', { ascending: true });
 
@@ -134,7 +147,7 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
 
     setOrders(transformed);
     setLoading(false);
-  }, [tipo]);
+  }, [tipo, sucursal?.id]);
 
   useEffect(() => {
     let mounted = true;
@@ -145,7 +158,7 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
 
       const supabase = createClientSupabaseClient();
 
-      const channelName = `kitchen-${tipo}-${Math.random().toString(36).slice(2, 9)}`;
+      const channelName = `kitchen-${tipo}-${sucursal?.id ?? 'unknown'}-${Math.random().toString(36).slice(2, 9)}`;
 
       const channel = supabase
         .channel(channelName)
@@ -153,11 +166,13 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
           event: 'INSERT',
           schema: 'public',
           table: 'ordenes',
+          filter: `sucursal_id=eq.${sucursal?.id}`,
         }, () => { if (mounted) fetchOrders(); })
         .on('postgres_changes', {
           event: 'UPDATE',
           schema: 'public',
           table: 'ordenes',
+          filter: `sucursal_id=eq.${sucursal?.id}`,
         }, () => { if (mounted) fetchOrders(); })
         .on('postgres_changes', {
           event: 'UPDATE',
@@ -210,7 +225,7 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
         clearInterval(cleanup.pollInterval);
       }
     };
-  }, [fetchOrders, tipo]);
+  }, [fetchOrders, tipo, sucursal?.id]);
 
   const grouped: KitchenOrdersGrouped = {
     pendiente: orders.filter((o) => o.estado === 'pendiente'),

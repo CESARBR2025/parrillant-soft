@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalId, getServerSucursalSlug } from '@/lib/sucursal';
+import { verificarTurnoActivo } from '@/lib/turno';
 
 interface ItemCrear {
   producto_id: number;
@@ -28,8 +30,15 @@ export async function crearOrden(
     return { error: 'La orden debe tener al menos un ítem' };
   }
 
+  const sucursalId = await getServerSucursalId();
+  const slug = await getServerSucursalSlug();
+  if (!sucursalId || !slug) return { error: 'Sucursal no encontrada' };
+
+  const { error: turnoError } = await verificarTurnoActivo(sucursalId);
+  if (turnoError) return { error: turnoError };
+
   // Crear la orden
-  const { data: orden, error: ordenError } = await supabase
+  const { data: orden, error: ordenError } = await (supabase as any)
     .from('ordenes')
     .insert({
       mesa_id,
@@ -37,6 +46,7 @@ export async function crearOrden(
       notas,
       estado: 'en_preparacion',
       comensales: comensales ?? null,
+      sucursal_id: sucursalId,
     })
     .select()
     .single();
@@ -55,23 +65,23 @@ export async function crearOrden(
     precio_unitario: item.precio_unitario,
   }));
 
-  const { error: detallesError } = await supabase
+  const { error: detallesError } = await (supabase as any)
     .from('detalles_orden')
     .insert(detalles);
 
   if (detallesError) {
     // Limpiar orden si fallan los detalles
-    await supabase.from('ordenes').delete().eq('id', orden.id);
+    await (supabase as any).from('ordenes').delete().eq('id', orden.id);
     return { error: detallesError.message };
   }
 
   // Ocupar la mesa
-  await supabase
+  await (supabase as any)
     .from('mesas')
     .update({ estado: 'ocupada' })
     .eq('id', mesa_id);
 
-  revalidatePath('/mesero');
+  revalidatePath(`/${slug}/mesero`);
 
   return { success: true, ordenId: orden.id };
 }

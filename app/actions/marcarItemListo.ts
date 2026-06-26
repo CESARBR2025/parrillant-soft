@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalSlug } from '@/lib/sucursal';
 
 export async function marcarItemListo(detalleId: number, listo: boolean = true) {
   const supabase = await createServerSupabaseClient();
@@ -9,11 +10,12 @@ export async function marcarItemListo(detalleId: number, listo: boolean = true) 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'No autorizado' };
 
-  const { data: perfil } = await supabase
+  const perfilRaw = await (supabase as any)
     .from('perfiles')
     .select('rol')
     .eq('id', user.id)
     .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil) return { error: 'Perfil no encontrado' };
 
@@ -22,7 +24,7 @@ export async function marcarItemListo(detalleId: number, listo: boolean = true) 
     return { error: 'No tienes permiso para marcar ítems como listos' };
   }
 
-  const { data: detalle } = await supabase
+  const { data: detalle } = await (supabase as any)
     .from('detalles_orden')
     .select('id, tipo, orden_id')
     .eq('id', detalleId)
@@ -37,16 +39,17 @@ export async function marcarItemListo(detalleId: number, listo: boolean = true) 
     return { error: 'Solo puedes marcar bebidas como listas' };
   }
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('detalles_orden')
     .update({ listo })
     .eq('id', detalleId);
 
   if (error) return { error: error.message };
 
-  revalidatePath('/cocina');
-  revalidatePath('/barra');
-  revalidatePath('/mesero');
+  const slug = await getServerSucursalSlug();
+  revalidatePath(`/${slug}/cocina`);
+  revalidatePath(`/${slug}/barra`);
+  revalidatePath(`/${slug}/mesero`);
 
   return { success: true };
 }

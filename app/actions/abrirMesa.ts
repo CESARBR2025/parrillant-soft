@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalId, getServerSucursalSlug } from '@/lib/sucursal';
+import { verificarTurnoActivo } from '@/lib/turno';
 
 export async function abrirMesa(mesa_id: number, comensales: number) {
   const supabase = await createServerSupabaseClient();
@@ -15,12 +17,19 @@ export async function abrirMesa(mesa_id: number, comensales: number) {
     return { error: 'Debe haber al menos 1 comensal' };
   }
 
-  await supabase
-    .from('mesas')
+  const sucursalId = await getServerSucursalId();
+  if (sucursalId) {
+    const { error: turnoError } = await verificarTurnoActivo(sucursalId);
+    if (turnoError) return { error: turnoError };
+  }
+
+  await (supabase
+    .from('mesas') as any)
     .update({ estado: 'ocupada' })
     .eq('id', mesa_id);
 
-  revalidatePath('/mesero');
+  const slug = await getServerSucursalSlug();
+  revalidatePath(`/${slug}/mesero`);
 
   return { success: true };
 }

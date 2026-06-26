@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getServerSucursalId, getServerSucursalSlug } from '@/lib/sucursal';
+import { verificarTurnoActivo } from '@/lib/turno';
 
 export async function solicitarCuenta(orden_id: number) {
   const supabase = await createServerSupabaseClient();
@@ -11,11 +13,18 @@ export async function solicitarCuenta(orden_id: number) {
     return { error: 'No autorizado' };
   }
 
-  const { data: orden } = await supabase
+  const sucursalId = await getServerSucursalId();
+  if (sucursalId) {
+    const { error: turnoError } = await verificarTurnoActivo(sucursalId);
+    if (turnoError) return { error: turnoError };
+  }
+
+  const ordenRaw = await (supabase as any)
     .from('ordenes')
     .select('id, estado, mesero_id')
     .eq('id', orden_id)
     .single();
+  const orden = ordenRaw.data as { id: number; estado: string; mesero_id: string } | null;
 
   if (!orden) {
     return { error: 'Orden no encontrada' };
@@ -26,10 +35,11 @@ export async function solicitarCuenta(orden_id: number) {
   }
 
   // Check all sub-orders are also entregado
-  const { data: subs } = await supabase
+  const subsRaw = await (supabase as any)
     .from('ordenes')
     .select('id, estado')
     .eq('orden_padre_id', orden_id);
+  const subs = subsRaw.data as { id: number; estado: string }[] | null;
 
   const subsPendientes = (subs ?? []).filter(s => s.estado !== 'entregado');
   if (subsPendientes.length > 0) {
@@ -37,7 +47,7 @@ export async function solicitarCuenta(orden_id: number) {
   }
 
   // Mark parent as cuenta_solicitada
-  const { error: parentError } = await supabase
+  const { error: parentError } = await (supabase as any)
     .from('ordenes')
     .update({ estado: 'cuenta_solicitada' })
     .eq('id', orden_id);
@@ -48,14 +58,15 @@ export async function solicitarCuenta(orden_id: number) {
 
   // Mark all sub-orders as cuenta_solicitada
   if ((subs ?? []).length > 0) {
-    await supabase
+    await (supabase as any)
       .from('ordenes')
       .update({ estado: 'cuenta_solicitada' })
       .eq('orden_padre_id', orden_id);
   }
 
-  revalidatePath('/mesero');
-  revalidatePath('/caja');
+  const slug = await getServerSucursalSlug();
+  revalidatePath(`/${slug}/mesero`);
+  revalidatePath(`/${slug}/caja`);
 
   return { success: true };
 }

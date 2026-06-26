@@ -5,8 +5,10 @@ import { usePathname } from 'next/navigation';
 import { PanelLeftClose, PanelLeft, ChevronDown } from 'lucide-react';
 import Image from 'next/image';
 import { useSession } from '@/components/providers/SessionProvider';
-import { NAV_ITEMS } from '@/lib/navigation';
+import { useSucursal } from '@/components/providers/SucursalProvider';
+import { navSectionsConSucursal, NAV_SECTIONS } from '@/lib/navigation';
 import type { Rol } from '@/types/roles';
+import type { NavSection } from '@/lib/navigation';
 import { RoleBadge } from './RoleBadge';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -19,12 +21,35 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { perfil, rol } = useSession();
+  const sucursal = useSucursal();
   const router = useRouter();
   const supabase = createClientSupabaseClient();
 
   if (!rol) return null;
 
-  const navItems = NAV_ITEMS[rol as Rol] ?? [];
+  const rawSections = NAV_SECTIONS[rol as Rol] ?? [];
+
+  let filteredSections: NavSection[];
+  if (!sucursal && (rol === 'super_admin' || rol === 'admin')) {
+    filteredSections = rawSections
+      .map(s => ({
+        ...s,
+        items: s.items.filter(i => i.href === '/admin' || i.href.startsWith('/admin/')),
+      }))
+      .filter(s => s.items.length > 0);
+  } else if (sucursal && (rol === 'super_admin' || rol === 'admin')) {
+    const globalOnlyHrefs = ['/admin/sucursales'];
+    filteredSections = rawSections
+      .map(s => ({
+        ...s,
+        items: s.items.filter(i => !globalOnlyHrefs.includes(i.href)),
+      }))
+      .filter(s => s.items.length > 0);
+  } else {
+    filteredSections = rawSections;
+  }
+
+  const sections = navSectionsConSucursal(filteredSections, sucursal?.slug);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -38,7 +63,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         collapsed ? 'w-16' : 'w-64'
       }`}
     >
-      {/* Toggle button overlapping right edge */}
       <button
         onClick={onToggle}
         className={`absolute top-5 -right-3 z-10 p-1.5 rounded-full bg-bg-sidebar border border-[#F6F6F6] text-muted hover:text-body hover:bg-bg-base transition-colors shadow-sm ${
@@ -48,7 +72,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       >
         <PanelLeft className="w-4 h-4" />
       </button>
-      {/* Logo + toggle */}
       <div className={`flex items-center h-20 px-3 border-b-2 border-[#F6F6F6] ${collapsed ? 'justify-center' : 'gap-3'}`}>
         <Image
           src="/parrillalogo.png"
@@ -60,9 +83,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         />
         {!collapsed && (
           <>
-            <span className="text-sm font-bold text-text-primary truncate">
-              Parrilla <span className="text-accent">Norteña</span>
-            </span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-bold text-text-primary truncate">
+                Parrilla <span className="text-accent">Norteña</span>
+              </span>
+              {sucursal && (
+                <span className="text-xs text-muted truncate">{sucursal.nombre}</span>
+              )}
+            </div>
             <button
               onClick={onToggle}
               className="ml-auto p-1.5 rounded-lg text-muted hover:text-body hover:bg-bg-base transition-colors"
@@ -74,30 +102,39 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 py-6 px-2 space-y-2 overflow-y-auto">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-accent/15 text-accent'
-                  : 'text-muted hover:text-body hover:bg-bg-base'
-              } ${collapsed ? 'justify-center' : ''}`}
-              title={collapsed ? item.label : undefined}
-            >
-              <Icon className="w-6 h-6 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 py-5 px-2 overflow-y-auto">
+        {sections.map((section) => (
+          <div key={section.label} className="mb-5 last:mb-0">
+            {!collapsed && section.label && (
+              <p className="px-3 pb-1.5 text-[11px] font-semibold text-muted uppercase tracking-wider">
+                {section.label}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-accent/15 text-accent'
+                        : 'text-muted hover:text-body hover:bg-bg-base'
+                    } ${collapsed ? 'justify-center' : ''}`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <Icon className="w-6 h-6 shrink-0" />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      {/* User footer */}
       {!collapsed && (
         <div className="p-4 border-t-2 border-[#F6F6F6]">
           <div className="flex items-center gap-3">

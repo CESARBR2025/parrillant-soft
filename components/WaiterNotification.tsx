@@ -3,25 +3,28 @@
 import { useEffect, useRef } from 'react';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { useSession } from '@/hooks/useSession';
+import { useSucursal } from '@/components/providers/SucursalProvider';
 import { useSound } from '@/hooks/useSound';
 
 export function WaiterNotification() {
   const { rol } = useSession();
+  const sucursal = useSucursal();
   const { play } = useSound('/sounds/iosbells.mp3');
   const notifiedRef = useRef<Set<number>>(new Set());
   const isInitialSeed = useRef(true);
 
   useEffect(() => {
-    if (rol !== 'mesero') return;
+    if (rol !== 'mesero' || !sucursal?.id) return;
 
     const supabase = createClientSupabaseClient();
 
     const channel = supabase
-      .channel('waiter-notifications')
+      .channel(`waiter-notifications-${sucursal.id}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'ordenes',
+        filter: `sucursal_id=eq.${sucursal.id}`,
       }, (payload) => {
         const orden = payload.new as { id: number; estado: string };
         if (orden.estado === 'listo') {
@@ -36,20 +39,22 @@ export function WaiterNotification() {
       .subscribe();
 
     const poll = async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('ordenes')
         .select('id')
-        .eq('estado', 'listo');
+        .eq('estado', 'listo')
+        .eq('sucursal_id', sucursal.id);
 
       if (!data) return;
 
+      const ordenes = data as { id: number }[];
       if (isInitialSeed.current) {
-        data.forEach((o) => notifiedRef.current.add(o.id));
+        ordenes.forEach((o) => notifiedRef.current.add(o.id));
         isInitialSeed.current = false;
         return;
       }
 
-      data.forEach((o) => {
+      ordenes.forEach((o) => {
         if (!notifiedRef.current.has(o.id)) {
           notifiedRef.current.add(o.id);
           play();
@@ -64,7 +69,7 @@ export function WaiterNotification() {
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
     };
-  }, [rol, play]);
+  }, [rol, play, sucursal?.id]);
 
   return null;
 }
