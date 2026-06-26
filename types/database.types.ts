@@ -59,6 +59,8 @@ export type Database = {
           id: number;
           nombre: string;
           orden: number;
+          sucursal_id: string;
+          tipo: Database["public"]["Enums"]["tipo_producto"];
         };
         Insert: {
           activa?: boolean;
@@ -67,6 +69,8 @@ export type Database = {
           id?: number;
           nombre: string;
           orden?: number;
+          sucursal_id: string;
+          tipo?: Database["public"]["Enums"]["tipo_producto"];
         };
         Update: {
           activa?: boolean;
@@ -75,6 +79,8 @@ export type Database = {
           id?: number;
           nombre?: string;
           orden?: number;
+          sucursal_id?: string;
+          tipo?: Database["public"]["Enums"]["tipo_producto"];
         };
         Relationships: [
           {
@@ -587,7 +593,7 @@ export type Database = {
         | "mesero"
         | "barra"
         | "cocina";
-      tipo_producto: "alimento" | "bebida" | "combo";
+      tipo_producto: "alimento" | "bebida" | "combo" | "postre";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -736,7 +742,7 @@ export const Constants = {
         "barra",
         "cocina",
       ],
-      tipo_producto: ["alimento", "bebida", "combo"],
+      tipo_producto: ["alimento", "bebida", "combo", "postre"],
     },
   },
 } as const;

@@ -9,7 +9,7 @@ interface ItemSub {
   producto_id: number;
   cantidad: number;
   notas?: string;
-  tipo: 'alimento' | 'bebida' | 'combo';
+  tipo: 'alimento' | 'bebida' | 'combo' | 'postre';
   precio_unitario: number;
 }
 

@@ -10,6 +10,7 @@ import {
   Users,
   Building2,
   CalendarClock,
+  UtensilsCrossed,
 } from 'lucide-react';
 import type { Rol } from '@/types/roles';
 
@@ -48,6 +49,7 @@ export const NAV_ITEMS: Record<Rol, NavItem[]> = {
     { label: 'Panel', href: '/admin', icon: LayoutDashboard },
     { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
     { label: 'Sucursales', href: '/admin/sucursales', icon: Building2 },
+    { label: 'Menú', href: '/admin/menu', icon: UtensilsCrossed },
     { label: 'Turnos', href: '/admin/turnos', icon: CalendarClock },
     { label: 'Mapa', href: '/mesero/mapa', icon: Grid3x3 },
     { label: 'Cocina', href: '/cocina', icon: CookingPot },
@@ -57,6 +59,7 @@ export const NAV_ITEMS: Record<Rol, NavItem[]> = {
   ],
   admin: [
     { label: 'Panel', href: '/admin', icon: LayoutDashboard },
+    { label: 'Menú', href: '/admin/menu', icon: UtensilsCrossed },
     { label: 'Turnos', href: '/admin/turnos', icon: CalendarClock },
     { label: 'Mapa', href: '/mesero/mapa', icon: Grid3x3 },
     { label: 'Cocina', href: '/cocina', icon: CookingPot },
@@ -94,6 +97,7 @@ export const NAV_SECTIONS: Record<Rol, NavSection[]> = {
       items: [
         { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
         { label: 'Sucursales', href: '/admin/sucursales', icon: Building2 },
+        { label: 'Menú', href: '/admin/menu', icon: UtensilsCrossed },
         { label: 'Turnos', href: '/admin/turnos', icon: CalendarClock },
       ],
     },
@@ -113,6 +117,7 @@ export const NAV_SECTIONS: Record<Rol, NavSection[]> = {
       label: 'Gestión',
       items: [
         { label: 'Panel', href: '/admin', icon: LayoutDashboard },
+        { label: 'Menú', href: '/admin/menu', icon: UtensilsCrossed },
         { label: 'Turnos', href: '/admin/turnos', icon: CalendarClock },
       ],
     },
