@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useNavigate } from '@/components/providers/NavigationProvider'
 import { CreditCard, Clock } from 'lucide-react'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
 import { useSucursal } from '@/components/providers/SucursalProvider'
@@ -32,7 +32,7 @@ interface OrdenConSubs {
 }
 
 export default function CajaPage() {
-  const router = useRouter()
+  const router = useNavigate()
   const supabase = createClientSupabaseClient()
   const sucursal = useSucursal()
   const [ordenes, setOrdenes] = useState<OrdenConSubs[]>([])

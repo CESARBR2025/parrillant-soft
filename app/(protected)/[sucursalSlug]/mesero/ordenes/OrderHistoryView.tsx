@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from '@/components/providers/NavigationProvider';
 import { ChevronDown, ChevronUp, Search, ScrollText } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useSucursal } from '@/components/providers/SucursalProvider';
-import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+
 
 interface Detalle {
   id: number;
@@ -82,29 +82,23 @@ function formatElapsed(dateStr: string): string {
 }
 
 export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
-  const router = useRouter();
+  const router = useNavigate();
   const sucursal = useSucursal();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [filter, setFilter] = useState<string>('todas');
-  const [regresando, setRegresando] = useState(false);
+
 
   const filtradas = filter === 'todas'
     ? ordenes
     : ordenes.filter(o => o.estado === filter);
 
   return (
-    <>
-      <LoadingOverlay show={regresando} />
-      <div className="space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <button
-          onClick={() => {
-            setRegresando(true);
-            router.push(`/${sucursal?.slug}/mesero`);
-          }}
-          disabled={regresando}
-          className="inline-flex items-center gap-1 text-xs md:text-sm font-medium text-accent bg-accent/10 hover:bg-accent hover:text-white border border-accent/20 hover:border-accent rounded-md px-3 py-1.5 transition-colors mb-3 disabled:opacity-70"
+          onClick={() => router.push(`/${sucursal?.slug}/mesero`)}
+          className="inline-flex items-center gap-1 text-xs md:text-sm font-medium text-accent bg-accent/10 hover:bg-accent hover:text-white border border-accent/20 hover:border-accent rounded-md px-3 py-1.5 transition-colors mb-3"
         >
           ← Regresar
         </button>
@@ -255,6 +249,5 @@ export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
         </div>
       )}
     </div>
-    </>
   );
 }

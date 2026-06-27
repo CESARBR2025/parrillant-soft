@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useContext } from 'react';
 import { useSession } from '@/components/providers/SessionProvider';
 import { useSucursal } from '@/components/providers/SucursalProvider';
+import { NavigationContext } from '@/components/providers/NavigationProvider';
 import { navItemsConSucursal } from '@/lib/navigation';
 import type { Rol } from '@/types/roles';
 
@@ -11,6 +13,7 @@ export function BottomNav() {
   const pathname = usePathname();
   const { rol } = useSession();
   const sucursal = useSucursal();
+  const { startNavigation } = useContext(NavigationContext);
 
   if (!rol) return null;
 
@@ -30,6 +33,7 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={startNavigation}
               className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors min-w-0 ${
                 isActive
                   ? 'text-accent'

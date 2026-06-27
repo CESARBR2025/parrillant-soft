@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useNavigate } from '@/components/providers/NavigationProvider';
 import { toast } from 'sonner';
 import { Clock, CheckCircle2, Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
 import { registrarTurno } from '@/app/actions/turnos';
 
 export default function RegistrarTurnoPage() {
-  const router = useRouter();
+  const router = useNavigate();
   const params = useParams();
   const sucursalSlug = params.sucursalSlug as string;
   const [isSubmitting, setIsSubmitting] = useState(false);

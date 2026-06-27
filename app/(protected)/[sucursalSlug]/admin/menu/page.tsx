@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getServerSucursalId } from '@/lib/sucursal';
 import { AdminMenuClient } from './AdminMenuClient';
+import { BackButton } from '@/components/ui/BackButton';
 import type { Tables } from '@/types/database.types';
 
 export const dynamic = 'force-dynamic';
@@ -48,12 +49,7 @@ export default async function AdminMenuPage({
   return (
     <div className="space-y-6">
       <div>
-        <a
-          href={`/${sucursalSlug}/admin`}
-          className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1 inline-block"
-        >
-          ← Panel de Administración
-        </a>
+        <BackButton />
         <h1 className="text-xl font-bold text-text-primary">Menú</h1>
         <p className="text-sm text-muted mt-1">{totalProductos} productos en {categorias?.length ?? 0} categorías</p>
       </div>

@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from '@/components/providers/NavigationProvider';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/Badge';
 import { useSucursal } from '@/components/providers/SucursalProvider';
 import { servirCategoria } from '@/app/actions/servirCategoria';
 import { solicitarCuenta } from '@/app/actions/solicitarCuenta';
 import { UtensilsCrossed, Wine, Check } from 'lucide-react';
-import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 import type { Database } from '@/types/database.types';
 
 interface Detalle {
@@ -269,12 +268,11 @@ export function ActiveOrderView({
   ordenPadre: Orden;
   subOrdenes: Orden[];
 }) {
-  const router = useRouter();
+  const router = useNavigate();
   const sucursal = useSucursal();
   const [padre, setPadre] = useState<Orden>(padreInicial);
   const [subOrdenes, setSubOrdenes] = useState<Orden[]>(subsIniciales);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
-  const [regresando, setRegresando] = useState(false);
 
   const fetchData = useCallback(async () => {
     const supabase = createClientSupabaseClient();
@@ -362,18 +360,12 @@ export function ActiveOrderView({
   const cfg = ESTADO_CONFIG[padre.estado];
 
   return (
-    <>
-      <LoadingOverlay show={regresando} />
-      <div className="space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <button
-            onClick={() => {
-              setRegresando(true);
-              router.push(`/${sucursal?.slug}/mesero/mapa`);
-            }}
-            disabled={regresando}
-            className="inline-flex items-center gap-1 text-sm font-medium text-accent bg-accent/10 hover:bg-accent hover:text-white border border-accent/20 hover:border-accent rounded-md px-3 py-1.5 transition-colors mb-3 disabled:opacity-70"
+            onClick={() => router.push(`/${sucursal?.slug}/mesero/mapa`)}
+            className="inline-flex items-center gap-1 text-sm font-medium text-accent bg-accent/10 hover:bg-accent hover:text-white border border-accent/20 hover:border-accent rounded-md px-3 py-1.5 transition-colors mb-3"
           >
             ← Regresar
           </button>
@@ -448,6 +440,5 @@ export function ActiveOrderView({
         )}
       </div>
     </div>
-    </>
   );
 }

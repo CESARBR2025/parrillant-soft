@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getServerSucursalId } from '@/lib/sucursal';
+import { fetchSucursalBySlug } from '@/lib/sucursal';
 import { Grid3x3, ScrollText, ClipboardList, TrendingUp, Clock, UtensilsCrossed } from 'lucide-react';
 import Link from 'next/link';
 
@@ -15,8 +15,9 @@ export default async function MeseroDashboard({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const sucursalId = await getServerSucursalId();
-  if (!sucursalId) redirect(`/${sucursalSlug}/mesero`);
+  const sucursal = await fetchSucursalBySlug(sucursalSlug);
+  if (!sucursal) redirect('/login');
+  const sucursalId = sucursal.id;
 
   const mesasOcupadasRaw = await supabase
     .from('ordenes')

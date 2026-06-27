@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from '@/components/providers/NavigationProvider';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { useSucursal } from '@/components/providers/SucursalProvider';
 import { TableCard } from './TableCard';
@@ -50,7 +50,7 @@ interface StatDef {
 }
 
 export function TableMap({ initialMesas }: TableMapProps) {
-  const router = useRouter();
+  const router = useNavigate();
   const sucursal = useSucursal();
   const [mesas, setMesas] = useState<MesaConOrden[]>(initialMesas);
   const [, setNow] = useState(() => Date.now());

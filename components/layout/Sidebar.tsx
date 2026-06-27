@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { PanelLeftClose, PanelLeft, ChevronDown } from 'lucide-react';
 import Image from 'next/image';
+import { useContext } from 'react';
 import { useSession } from '@/components/providers/SessionProvider';
 import { useSucursal } from '@/components/providers/SucursalProvider';
 import { navSectionsConSucursal, NAV_SECTIONS } from '@/lib/navigation';
@@ -11,7 +12,7 @@ import type { Rol } from '@/types/roles';
 import type { NavSection } from '@/lib/navigation';
 import { RoleBadge } from './RoleBadge';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useNavigate, NavigationContext } from '@/components/providers/NavigationProvider';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -22,7 +23,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { perfil, rol } = useSession();
   const sucursal = useSucursal();
-  const router = useRouter();
+  const router = useNavigate();
+  const { startNavigation } = useContext(NavigationContext);
   const supabase = createClientSupabaseClient();
 
   if (!rol) return null;
@@ -113,11 +115,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                const hasDeeperItems = section.items.some(
+                  i => i.href !== item.href && i.href.startsWith(item.href + '/')
+                );
+                const isActive = hasDeeperItems
+                  ? pathname === item.href
+                  : pathname === item.href || pathname.startsWith(item.href + '/');
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={startNavigation}
                     className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
                       isActive
                         ? 'bg-accent/15 text-accent'

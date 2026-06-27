@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { Users, ClipboardList, CookingPot, Wine, CreditCard, Table2, UtensilsCrossed } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default async function AdminPage({
   params,
@@ -22,6 +23,7 @@ export default async function AdminPage({
     return (
         <div className="space-y-6">
             <div>
+                <BackButton />
                 <h1 className="text-2xl font-bold text-text-primary">Panel de Administración</h1>
             </div>
 
