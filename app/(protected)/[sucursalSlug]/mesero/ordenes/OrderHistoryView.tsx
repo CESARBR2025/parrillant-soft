@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, Search, ScrollText } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useSucursal } from '@/components/providers/SucursalProvider';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 
 interface Detalle {
   id: number;
@@ -85,20 +86,27 @@ export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
   const sucursal = useSucursal();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [filter, setFilter] = useState<string>('todas');
+  const [regresando, setRegresando] = useState(false);
 
   const filtradas = filter === 'todas'
     ? ordenes
     : ordenes.filter(o => o.estado === filter);
 
   return (
-    <div className="space-y-6">
+    <>
+      <LoadingOverlay show={regresando} />
+      <div className="space-y-6">
       {/* Header */}
       <div>
         <button
-          onClick={() => router.push(`/${sucursal?.slug}/mesero`)}
-          className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1"
+          onClick={() => {
+            setRegresando(true);
+            router.push(`/${sucursal?.slug}/mesero`);
+          }}
+          disabled={regresando}
+          className="inline-flex items-center gap-1 text-xs md:text-sm font-medium text-accent bg-accent/10 hover:bg-accent hover:text-white border border-accent/20 hover:border-accent rounded-md px-3 py-1.5 transition-colors mb-3 disabled:opacity-70"
         >
-          ← Mapa de Mesas
+          ← Regresar
         </button>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-accent/15 flex items-center justify-center shrink-0">
@@ -247,5 +255,6 @@ export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
         </div>
       )}
     </div>
+    </>
   );
 }

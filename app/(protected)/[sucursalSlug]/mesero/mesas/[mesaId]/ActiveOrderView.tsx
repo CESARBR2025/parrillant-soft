@@ -8,6 +8,7 @@ import { useSucursal } from '@/components/providers/SucursalProvider';
 import { servirCategoria } from '@/app/actions/servirCategoria';
 import { solicitarCuenta } from '@/app/actions/solicitarCuenta';
 import { UtensilsCrossed, Wine, Check } from 'lucide-react';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 import type { Database } from '@/types/database.types';
 
 interface Detalle {
@@ -273,6 +274,7 @@ export function ActiveOrderView({
   const [padre, setPadre] = useState<Orden>(padreInicial);
   const [subOrdenes, setSubOrdenes] = useState<Orden[]>(subsIniciales);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
+  const [regresando, setRegresando] = useState(false);
 
   const fetchData = useCallback(async () => {
     const supabase = createClientSupabaseClient();
@@ -360,14 +362,20 @@ export function ActiveOrderView({
   const cfg = ESTADO_CONFIG[padre.estado];
 
   return (
-    <div className="space-y-6">
+    <>
+      <LoadingOverlay show={regresando} />
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <button
-            onClick={() => router.push(`/${sucursal?.slug}/mesero/mapa`)}
-            className="text-sm text-gray-400 hover:text-gray-700 transition-colors mb-1"
+            onClick={() => {
+              setRegresando(true);
+              router.push(`/${sucursal?.slug}/mesero/mapa`);
+            }}
+            disabled={regresando}
+            className="inline-flex items-center gap-1 text-sm font-medium text-accent bg-accent/10 hover:bg-accent hover:text-white border border-accent/20 hover:border-accent rounded-md px-3 py-1.5 transition-colors mb-3 disabled:opacity-70"
           >
-            ← Mapa de Mesas
+            ← Regresar
           </button>
           <h1 className="text-xl font-bold text-gray-900">
             Mesa {mesa.numero}
@@ -440,5 +448,6 @@ export function ActiveOrderView({
         )}
       </div>
     </div>
+    </>
   );
 }

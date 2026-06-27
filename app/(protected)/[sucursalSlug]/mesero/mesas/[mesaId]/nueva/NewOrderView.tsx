@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { crearOrden } from '@/app/actions/crearOrden';
 import { crearSubOrden } from '@/app/actions/crearSubOrden';
 import { useHeaderActions } from '@/components/providers/HeaderActionsProvider';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 import type { Tables } from '@/types/database.types';
 
 type Categoria = Tables<'categorias'>;
@@ -39,6 +40,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente, come
   const [cart, setCart] = useState<Map<number, CartItem>>(new Map());
   const [notaGeneral, setNotaGeneral] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [regresando, setRegresando] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showCartSheet, setShowCartSheet] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -244,7 +246,9 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente, come
   }, [searchRef, setSearchFocused]);
 
   return (
-    <div className="flex flex-col md:flex-row gap-6 h-full">
+    <>
+      <LoadingOverlay show={regresando} />
+      <div className="flex flex-col md:flex-row gap-6 h-full">
       {/* Main content */}
       <div className="flex-1 min-w-0 space-y-4">
         {/* Header */}
@@ -252,14 +256,16 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente, come
           <div>
             <button
               onClick={() => {
+                setRegresando(true);
                 const destino = ordenExistente && ordenExistente.estado !== 'pendiente'
                   ? `/${sucursal?.slug}/mesero/mesas/${mesa.id}`
                   : `/${sucursal?.slug}/mesero/mapa`;
-                window.location.href = destino;
+                router.push(destino);
               }}
-              className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1"
+              disabled={regresando}
+              className="inline-flex items-center gap-1 text-xs md:text-sm font-medium text-accent bg-accent/10 hover:bg-accent hover:text-white border border-accent/20 hover:border-accent rounded-md px-3 py-1.5 transition-colors mb-3 disabled:opacity-70"
             >
-              ← {ordenExistente && ordenExistente.estado !== 'pendiente' ? 'Volver a la orden' : 'Mapa de Mesas'}
+              ← {ordenExistente && ordenExistente.estado !== 'pendiente' ? 'Volver a la orden' : 'Regresar'}
             </button>
             <h1 className="text-lg md:text-xl font-bold text-text-primary">
               Mesa {mesa.numero}
@@ -590,6 +596,7 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente, come
         </div>
       )}
     </div>
+    </>
   );
 }
 
