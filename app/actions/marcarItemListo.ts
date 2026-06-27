@@ -10,6 +10,12 @@ export async function marcarItemListo(detalleId: number, listo: boolean = true) 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'No autorizado' };
 
+  const { data: puedeCocina } = await (supabase as any).rpc('tiene_permiso', { permiso_codigo: 'ordenes.cocina' });
+  const { data: puedeBarra } = await (supabase as any).rpc('tiene_permiso', { permiso_codigo: 'ordenes.barra' });
+  if (!puedeCocina && !puedeBarra) {
+    return { error: 'No tienes permiso para marcar ítems como listos' };
+  }
+
   const perfilRaw = await (supabase as any)
     .from('perfiles')
     .select('rol')
@@ -18,11 +24,6 @@ export async function marcarItemListo(detalleId: number, listo: boolean = true) 
   const perfil = perfilRaw.data as { rol: string } | null;
 
   if (!perfil) return { error: 'Perfil no encontrado' };
-
-  const rolesPermitidos = ['cocina', 'barra', 'admin', 'super_admin'];
-  if (!rolesPermitidos.includes(perfil.rol)) {
-    return { error: 'No tienes permiso para marcar ítems como listos' };
-  }
 
   const { data: detalle } = await (supabase as any)
     .from('detalles_orden')

@@ -16,8 +16,10 @@ type PerfilRow = Tables<'perfiles'>;
 type SucursalRow = Tables<'sucursales'>;
 
 const ROLES = [
-  { value: 'super_admin', label: 'Super Admin' },
-  { value: 'admin', label: 'Admin' },
+  { value: 'super_admin', label: 'Super Administrador' },
+  { value: 'administrador', label: 'Administrador' },
+  { value: 'gerente_sucursal', label: 'Gerente Sucursal' },
+  { value: 'admin', label: 'Admin (legacy)' },
   { value: 'caja', label: 'Caja' },
   { value: 'mesero', label: 'Mesero' },
   { value: 'barra', label: 'Barra' },
@@ -26,7 +28,9 @@ const ROLES = [
 
 const ROL_VARIANT: Record<string, 'danger' | 'default' | 'success' | 'warning' | 'purple' | 'info'> = {
   super_admin: 'danger',
+  administrador: 'warning',
   admin: 'warning',
+  gerente_sucursal: 'info',
   caja: 'info',
   mesero: 'success',
   barra: 'purple',
@@ -297,8 +301,8 @@ export function AdminUsuariosClient({
                 <input
                   type="text"
                   value={nombre}
-                  onChange={e => setNombre(e.target.value)}
-                  className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body"
+                  onChange={e => setNombre(e.target.value.toUpperCase())}
+                  className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body uppercase"
                   placeholder="Nombre del usuario"
                 />
               </div>
@@ -370,8 +374,8 @@ export function AdminUsuariosClient({
                 <input
                   type="text"
                   value={nombre}
-                  onChange={e => setNombre(e.target.value)}
-                  className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body"
+                  onChange={e => setNombre(e.target.value.toUpperCase())}
+                  className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body uppercase"
                 />
               </div>
               <div>

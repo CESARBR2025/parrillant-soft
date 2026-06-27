@@ -9,22 +9,8 @@ export async function verificarTurnoActivo(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { turno: null, error: 'No autorizado' };
 
-  const perfilRaw = await (supabase as any)
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-
-  if (!perfil) return { turno: null, error: 'Perfil no encontrado' };
-
-  if (perfil.rol === 'super_admin' || perfil.rol === 'admin') {
-    return { turno: null, error: null };
-  }
-
-  if (perfil.rol !== 'mesero') {
-    return { turno: null, error: null };
-  }
+  const { data: puedeRegistrarTurno } = await (supabase as any).rpc('tiene_permiso', { permiso_codigo: 'turnos.registrar' });
+  if (!puedeRegistrarTurno) return { turno: null, error: null };
 
   const turnoRaw = await (supabase as any)
     .from('registro_turnos_personal')

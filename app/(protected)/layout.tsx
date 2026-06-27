@@ -34,9 +34,12 @@ export default async function ProtectedLayout({
     redirect('/login?error=cuenta_inactiva');
   }
 
-  const cookieStore = await cookies();
-  const sucursalSlug = cookieStore.get('sucursal_slug')?.value;
-  const sucursal = sucursalSlug ? await fetchSucursalBySlug(sucursalSlug) : null;
+  let sucursal: Sucursal | null = null;
+  if (perfil.rol !== 'super_admin') {
+    const cookieStore = await cookies();
+    const sucursalSlug = cookieStore.get('sucursal_slug')?.value;
+    sucursal = sucursalSlug ? await fetchSucursalBySlug(sucursalSlug) : null;
+  }
 
   return (
       <SessionProvider initialUser={user} initialPerfil={perfil as unknown as Perfil}>

@@ -1,30 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/database.types';
-
-async function getSuperAdmin() {
-  const supabase = await createServerSupabaseClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const perfilRaw = await (supabase as any)
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-
-  if (!perfil || perfil.rol !== 'super_admin') return null;
-
-  return supabase;
-}
+import { authorize } from '@/lib/auth';
 
 async function clonarMenu(
-  supabase: SupabaseClient<Database>,
+  supabase: any,
   origenId: string,
   destinoId: string,
 ): Promise<string | null> {
@@ -90,14 +70,14 @@ export async function crearSucursal(data: {
   direccion?: string | null;
   clonarDesdeId?: string | null;
 }) {
-  const supabase = await getSuperAdmin();
-  if (!supabase) return { error: 'No autorizado' };
+  const auth = await authorize('sucursales.administrar');
+  if (!auth.authorized) return { error: auth.error };
 
   if (!/^[a-z0-9-]+$/.test(data.slug)) {
     return { error: 'Slug inválido. Solo minúsculas, números y guiones' };
   }
 
-  const existenteRaw = await (supabase as any)
+  const existenteRaw = await (auth.supabase as any)
     .from('sucursales')
     .select('id')
     .eq('slug', data.slug)
@@ -108,7 +88,7 @@ export async function crearSucursal(data: {
     return { error: 'Ya existe una sucursal con ese slug' };
   }
 
-  const nuevaRaw = await (supabase as any)
+  const nuevaRaw = await (auth.supabase as any)
     .from('sucursales')
     .insert({
       slug: data.slug,
@@ -124,7 +104,7 @@ export async function crearSucursal(data: {
   if (insertError || !nueva) return { error: insertError?.message ?? 'Error al crear sucursal' };
 
   if (data.clonarDesdeId) {
-    const errorClon = await clonarMenu(supabase, data.clonarDesdeId, nueva.id);
+    const errorClon = await clonarMenu(auth.supabase, data.clonarDesdeId, nueva.id);
     if (errorClon) return { error: errorClon };
   }
 
@@ -136,15 +116,15 @@ export async function actualizarSucursal(
   id: string,
   data: { slug?: string; nombre?: string; direccion?: string | null },
 ) {
-  const supabase = await getSuperAdmin();
-  if (!supabase) return { error: 'No autorizado' };
+  const auth = await authorize('sucursales.administrar');
+  if (!auth.authorized) return { error: auth.error };
 
   if (data.slug && !/^[a-z0-9-]+$/.test(data.slug)) {
     return { error: 'Slug inválido' };
   }
 
   if (data.slug) {
-    const existenteRaw = await (supabase as any)
+    const existenteRaw = await (auth.supabase as any)
       .from('sucursales')
       .select('id')
       .eq('slug', data.slug)
@@ -157,7 +137,7 @@ export async function actualizarSucursal(
     }
   }
 
-  const { error } = await (supabase as any)
+  const { error } = await (auth.supabase as any)
     .from('sucursales')
     .update(data)
     .eq('id', id);
@@ -169,10 +149,10 @@ export async function actualizarSucursal(
 }
 
 export async function toggleSucursalActiva(id: string, activa: boolean) {
-  const supabase = await getSuperAdmin();
-  if (!supabase) return { error: 'No autorizado' };
+  const auth = await authorize('sucursales.administrar');
+  if (!auth.authorized) return { error: auth.error };
 
-  const { error } = await (supabase as any)
+  const { error } = await (auth.supabase as any)
     .from('sucursales')
     .update({ activa })
     .eq('id', id);
@@ -184,10 +164,10 @@ export async function toggleSucursalActiva(id: string, activa: boolean) {
 }
 
 export async function eliminarSucursal(id: string) {
-  const supabase = await getSuperAdmin();
-  if (!supabase) return { error: 'No autorizado' };
+  const auth = await authorize('sucursales.administrar');
+  if (!auth.authorized) return { error: auth.error };
 
-  const mesasRaw = await (supabase as any)
+  const mesasRaw = await (auth.supabase as any)
     .from('mesas')
     .select('*', { count: 'exact', head: true })
     .eq('sucursal_id', id);
@@ -197,7 +177,7 @@ export async function eliminarSucursal(id: string) {
     return { error: 'No se puede eliminar: la sucursal tiene mesas registradas. Desactívala en su lugar.' };
   }
 
-  const ordenesRaw = await (supabase as any)
+  const ordenesRaw = await (auth.supabase as any)
     .from('ordenes')
     .select('*', { count: 'exact', head: true })
     .eq('sucursal_id', id);
@@ -207,9 +187,9 @@ export async function eliminarSucursal(id: string) {
     return { error: 'No se puede eliminar: la sucursal tiene órdenes. Desactívala en su lugar.' };
   }
 
-  await (supabase as any).from('usuario_sucursales').delete().eq('sucursal_id', id);
+  await (auth.supabase as any).from('usuario_sucursales').delete().eq('sucursal_id', id);
 
-  const { error } = await (supabase as any)
+  const { error } = await (auth.supabase as any)
     .from('sucursales')
     .delete()
     .eq('id', id);

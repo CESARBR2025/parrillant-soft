@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Mail, Lock, LogIn, Loader2, AlertCircle, Store, Clock, CheckCircle2 } from 'lucide-react';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
-import type { Rol, Sucursal } from '@/types/roles';
+import type { Rol, KnownRol, Sucursal } from '@/types/roles';
 import { RUTA_INICIO_POR_ROL } from '@/types/roles';
 import { registrarTurno, obtenerTurnoActivo } from '@/app/actions/turnos';
 
@@ -26,7 +26,7 @@ export default function LoginPage() {
 
     useEffect(() => {
         if (step === 'sucursal' && userRol && userRol !== 'mesero' && sucursales.length === 1) {
-            const ruta = RUTA_INICIO_POR_ROL[userRol] ?? '/mesero';
+            const ruta = RUTA_INICIO_POR_ROL[userRol as KnownRol] ?? '/mesero';
             router.push(`/${sucursales[0].slug}${ruta}`);
         }
     }, [step, sucursales, userRol, router]);
@@ -63,8 +63,24 @@ export default function LoginPage() {
 
         const rol = perfil.rol as Rol;
 
-        if (rol === 'super_admin' || rol === 'admin') {
+        if (rol === 'super_admin') {
             router.push('/admin');
+            return;
+        }
+
+        if (rol === 'admin') {
+            const userSucursalesRaw = await supabase
+                .from('usuario_sucursales')
+                .select('sucursales!inner(slug)');
+            const userSucursales: { sucursales: { slug: string } }[] = userSucursalesRaw.data ?? [];
+            const slug = userSucursales[0]?.sucursales?.slug;
+            if (slug) {
+                router.push(`/${slug}/admin`);
+                return;
+            }
+            await supabase.auth.signOut();
+            setError('No tienes sucursales asignadas. Contacta al administrador.');
+            setLoading(false);
             return;
         }
 
@@ -178,7 +194,7 @@ export default function LoginPage() {
 
     function handleSelectSucursal(slug: string) {
         setSelectedSucursal(slug);
-        const ruta = RUTA_INICIO_POR_ROL[userRol!] ?? '/mesero';
+        const ruta = RUTA_INICIO_POR_ROL[userRol! as KnownRol] ?? '/mesero';
         router.push(`/${slug}${ruta}`);
     }
 
@@ -270,20 +286,21 @@ export default function LoginPage() {
                                     <div
                                         key={s.id}
                                         className="w-full bg-bg-card rounded-2xl border-2 border-border-default p-5
-                                            hover:border-accent/50 hover:bg-accent/5 transition-all
-                                            flex items-center gap-4 text-left"
+                                            hover:border-accent/50 hover:bg-accent/5 transition-all space-y-3"
                                     >
-                                        <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                                            <Store className="w-6 h-6 text-accent" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-text-primary">{s.nombre}</p>
-                                            <p className="text-xs text-muted">{s.slug}</p>
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                                                <Store className="w-6 h-6 text-accent" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-text-primary">{s.nombre}</p>
+                                                <p className="text-xs text-muted">{s.slug}</p>
+                                            </div>
                                         </div>
                                         {userRol === 'mesero' ? (
                                             <button
                                                 onClick={() => setConfirmarSucursal(s)}
-                                                className="shrink-0 bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors flex items-center gap-1.5"
+                                                className="w-full bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
                                             >
                                                 <Clock className="w-4 h-4" />
                                                 Registrar turno
@@ -292,7 +309,7 @@ export default function LoginPage() {
                                             <button
                                                 onClick={() => handleSelectSucursal(s.slug)}
                                                 disabled={selectedSucursal === s.slug}
-                                                className="shrink-0 bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-50"
+                                                className="w-full bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-50"
                                             >
                                                 Entrar
                                             </button>

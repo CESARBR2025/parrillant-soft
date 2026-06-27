@@ -592,7 +592,9 @@ export type Database = {
         | "caja"
         | "mesero"
         | "barra"
-        | "cocina";
+        | "cocina"
+        | "gerente_sucursal"
+        | "administrador";
       tipo_producto: "alimento" | "bebida" | "combo" | "postre";
     };
     CompositeTypes: {
@@ -741,6 +743,8 @@ export const Constants = {
         "mesero",
         "barra",
         "cocina",
+        "gerente_sucursal",
+        "administrador",
       ],
       tipo_producto: ["alimento", "bebida", "combo", "postre"],
     },

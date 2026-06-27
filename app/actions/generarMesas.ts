@@ -1,8 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getServerSucursalId, getServerSucursalSlug } from '@/lib/sucursal';
+import { authorize } from '@/lib/auth';
 
 export async function generarMesas(
   cantidad: number,
@@ -10,21 +10,8 @@ export async function generarMesas(
   capacidad: number,
   zona: string | null,
 ) {
-  const supabase = await createServerSupabaseClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'No autorizado' };
-
-  const perfilRaw = await (supabase as any)
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-
-  if (!perfil || (perfil.rol !== 'admin' && perfil.rol !== 'super_admin')) {
-    return { error: 'No tienes permiso para generar mesas' };
-  }
+  const auth = await authorize('sucursal.mesas.administrar');
+  if (!auth.authorized) return { error: auth.error };
 
   const sucursalId = await getServerSucursalId();
   const slug = await getServerSucursalSlug();
@@ -39,7 +26,7 @@ export async function generarMesas(
     sucursal_id: sucursalId,
   }));
 
-  const { error } = await (supabase as any).from('mesas').insert(mesas);
+  const { error } = await (auth.supabase as any).from('mesas').insert(mesas);
 
   if (error) return { error: error.message };
 

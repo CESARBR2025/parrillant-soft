@@ -1,28 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getServerSucursalSlug } from '@/lib/sucursal';
-
-async function authorizeAdmin() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'No autorizado', supabase: null as any, slug: null };
-
-  const perfilRaw = await (supabase as any)
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-
-  if (!perfil || (perfil.rol !== 'admin' && perfil.rol !== 'super_admin')) {
-    return { error: 'No tienes permiso', supabase: null, slug: null };
-  }
-
-  const slug = await getServerSucursalSlug();
-  return { error: null, supabase, slug };
-}
+import { authorize } from '@/lib/auth';
 
 export async function crearProducto(
   sucursalId: string,
@@ -34,8 +14,9 @@ export async function crearProducto(
     descripcion?: string | null;
   }
 ) {
-  const auth = await authorizeAdmin();
-  if (auth.error || !auth.supabase) return { error: auth.error ?? 'Error' };
+  const auth = await authorize('sucursal.menu.administrar');
+  if (!auth.authorized) return { error: auth.error };
+  const slug = await getServerSucursalSlug();
 
   if (data.precio < 0) return { error: 'El precio no puede ser negativo' };
   if (!data.nombre.trim()) return { error: 'El nombre es obligatorio' };
@@ -55,7 +36,7 @@ export async function crearProducto(
 
   if (error) return { error: error.message };
 
-  revalidatePath(`/${auth.slug}/admin/menu`);
+  revalidatePath(`/${slug}/admin/menu`);
   return { success: true, productoId: nuevo?.id as number };
 }
 
@@ -70,8 +51,9 @@ export async function editarProducto(
     disponible?: boolean;
   }
 ) {
-  const auth = await authorizeAdmin();
-  if (auth.error || !auth.supabase) return { error: auth.error ?? 'Error' };
+  const auth = await authorize('sucursal.menu.administrar');
+  if (!auth.authorized) return { error: auth.error };
+  const slug = await getServerSucursalSlug();
 
   if (data.precio !== undefined && data.precio < 0) {
     return { error: 'El precio no puede ser negativo' };
@@ -84,13 +66,14 @@ export async function editarProducto(
 
   if (error) return { error: error.message };
 
-  revalidatePath(`/${auth.slug}/admin/menu`);
+  revalidatePath(`/${slug}/admin/menu`);
   return { success: true };
 }
 
 export async function eliminarProducto(id: number) {
-  const auth = await authorizeAdmin();
-  if (auth.error || !auth.supabase) return { error: auth.error ?? 'Error' };
+  const auth = await authorize('sucursal.menu.administrar');
+  if (!auth.authorized) return { error: auth.error };
+  const slug = await getServerSucursalSlug();
 
   const { data: producto } = await (auth.supabase as any)
     .from('productos_menu')
@@ -115,6 +98,6 @@ export async function eliminarProducto(id: number) {
 
   if (error) return { error: error.message };
 
-  revalidatePath(`/${auth.slug}/admin/menu`);
+  revalidatePath(`/${slug}/admin/menu`);
   return { success: true };
 }

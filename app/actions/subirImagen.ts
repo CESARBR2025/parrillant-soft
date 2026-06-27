@@ -1,32 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getServerSucursalSlug } from '@/lib/sucursal';
-
-async function authorizeAdmin() {
-  const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'No autorizado', supabase: null as any, slug: null };
-
-  const perfilRaw = await (supabase as any)
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-
-  if (!perfil || (perfil.rol !== 'admin' && perfil.rol !== 'super_admin')) {
-    return { error: 'No tienes permiso', supabase: null, slug: null };
-  }
-
-  const slug = await getServerSucursalSlug();
-  return { error: null, supabase, slug };
-}
+import { authorize } from '@/lib/auth';
 
 export async function subirImagen(productoId: number, formData: FormData) {
-  const auth = await authorizeAdmin();
-  if (auth.error || !auth.supabase) return { error: auth.error ?? 'Error' };
+  const auth = await authorize('sucursal.menu.administrar');
+  if (!auth.authorized) return { error: auth.error };
+  const slug = await getServerSucursalSlug();
 
   const file = formData.get('imagen') as File;
   if (!file || file.size === 0) return { error: 'No se seleccionó ninguna imagen' };
@@ -64,13 +45,14 @@ export async function subirImagen(productoId: number, formData: FormData) {
     .update({ imagen_url: publicUrl })
     .eq('id', productoId);
 
-  revalidatePath(`/${auth.slug}/admin/menu`);
+  revalidatePath(`/${slug}/admin/menu`);
   return { success: true, url: publicUrl };
 }
 
 export async function eliminarImagen(productoId: number) {
-  const auth = await authorizeAdmin();
-  if (auth.error || !auth.supabase) return { error: auth.error ?? 'Error' };
+  const auth = await authorize('sucursal.menu.administrar');
+  if (!auth.authorized) return { error: auth.error };
+  const slug = await getServerSucursalSlug();
 
   const { data: producto } = await (auth.supabase as any)
     .from('productos_menu')
@@ -93,6 +75,6 @@ export async function eliminarImagen(productoId: number) {
     .update({ imagen_url: null })
     .eq('id', productoId);
 
-  revalidatePath(`/${auth.slug}/admin/menu`);
+  revalidatePath(`/${slug}/admin/menu`);
   return { success: true };
 }

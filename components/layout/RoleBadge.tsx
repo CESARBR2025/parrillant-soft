@@ -1,6 +1,6 @@
 'use client';
 
-import type { Rol } from '@/types/roles';
+import type { Rol, KnownRol } from '@/types/roles';
 import { ROLE_LABELS, ROLE_BADGE_STYLES } from '@/lib/navigation';
 
 interface RoleBadgeProps {
@@ -11,9 +11,9 @@ interface RoleBadgeProps {
 export function RoleBadge({ rol, className = '' }: RoleBadgeProps) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ROLE_BADGE_STYLES[rol]} ${className}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${ROLE_BADGE_STYLES[rol as KnownRol]} ${className}`}
     >
-      {ROLE_LABELS[rol]}
+      {ROLE_LABELS[rol as KnownRol]}
     </span>
   );
 }

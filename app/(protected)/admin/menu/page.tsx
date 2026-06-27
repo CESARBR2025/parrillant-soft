@@ -18,7 +18,7 @@ export default async function GlobalMenuPage() {
     .single();
   const perfil = perfilRaw.data as { rol: string } | null;
 
-  if (!perfil || (perfil.rol !== 'super_admin' && perfil.rol !== 'admin')) {
+  if (!perfil || perfil.rol !== 'super_admin') {
     redirect('/admin');
   }
 
