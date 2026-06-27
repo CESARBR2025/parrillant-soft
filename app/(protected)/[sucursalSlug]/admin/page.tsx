@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { Users, ClipboardList, CookingPot, Wine, CreditCard, Table2 } from 'lucide-react';
+import { Users, ClipboardList, CookingPot, Wine, CreditCard, Table2, UtensilsCrossed } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default async function AdminPage({
   params,
@@ -22,6 +23,7 @@ export default async function AdminPage({
     return (
         <div className="space-y-6">
             <div>
+                <BackButton />
                 <h1 className="text-2xl font-bold text-text-primary">Panel de Administración</h1>
             </div>
 
@@ -56,6 +58,7 @@ export default async function AdminPage({
                         { label: 'Caja', href: `/${sucursalSlug}/caja`, icon: CreditCard, color: 'text-green-400' },
                         { label: 'Órdenes', href: `/${sucursalSlug}/mesero`, icon: ClipboardList, color: 'text-blue-400' },
                         { label: 'Mesas', href: `/${sucursalSlug}/admin/mesas`, icon: Table2, color: 'text-gray-400' },
+                        { label: 'Menú', href: `/${sucursalSlug}/admin/menu`, icon: UtensilsCrossed, color: 'text-amber-400' },
                         { label: 'Usuarios', href: `/${sucursalSlug}/admin/usuarios`, icon: Users, color: 'text-gray-400' },
                     ].map(item => (
                         <a

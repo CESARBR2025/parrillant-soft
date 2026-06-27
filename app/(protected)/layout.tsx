@@ -1,10 +1,14 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { SessionProvider } from '@/components/providers/SessionProvider';
+import { SucursalProvider } from '@/components/providers/SucursalProvider';
 import { HeaderActionsProvider } from '@/components/providers/HeaderActionsProvider';
+import { NavigationProvider } from '@/components/providers/NavigationProvider';
 import { AppShell } from '@/components/layout/AppShell';
 import { WaiterNotification } from '@/components/WaiterNotification';
-import type { Perfil } from '@/types/roles';
+import { fetchSucursalBySlug } from '@/lib/sucursal';
+import type { Perfil, Sucursal } from '@/types/roles';
 
 export default async function ProtectedLayout({
   children,
@@ -30,12 +34,23 @@ export default async function ProtectedLayout({
     redirect('/login?error=cuenta_inactiva');
   }
 
+  let sucursal: Sucursal | null = null;
+  if (perfil.rol !== 'super_admin') {
+    const cookieStore = await cookies();
+    const sucursalSlug = cookieStore.get('sucursal_slug')?.value;
+    sucursal = sucursalSlug ? await fetchSucursalBySlug(sucursalSlug) : null;
+  }
+
   return (
       <SessionProvider initialUser={user} initialPerfil={perfil as unknown as Perfil}>
+        <NavigationProvider>
         <HeaderActionsProvider>
+          <SucursalProvider sucursal={sucursal as unknown as Sucursal}>
           <WaiterNotification />
           <AppShell>{children}</AppShell>
+          </SucursalProvider>
         </HeaderActionsProvider>
+        </NavigationProvider>
       </SessionProvider>
   );
 }

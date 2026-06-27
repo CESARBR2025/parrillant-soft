@@ -1,49 +1,15 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getServerSucursalSlug, getServerSucursalId } from '@/lib/sucursal';
+import { getServerSucursalSlug } from '@/lib/sucursal';
 import { createClient } from '@supabase/supabase-js';
+import { authorize } from '@/lib/auth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
-
-async function authorizeSuperAdmin() {
-  const supabase = await createServerSupabaseClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const perfilRaw = await (supabase as any)
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-
-  if (!perfil || perfil.rol !== 'super_admin') return null;
-  return supabase;
-}
-
-async function authorizeAdmin() {
-  const supabase = await createServerSupabaseClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const perfilRaw = await (supabase as any)
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-
-  if (!perfil || (perfil.rol !== 'admin' && perfil.rol !== 'super_admin')) return null;
-  return supabase;
-}
 
 export async function crearUsuario(data: {
   email: string;
@@ -52,8 +18,8 @@ export async function crearUsuario(data: {
   rol: string;
   sucursales?: string[];
 }) {
-  const auth = await authorizeSuperAdmin();
-  if (!auth) return { error: 'No autorizado' };
+  const auth = await authorize('usuarios.administrar');
+  if (!auth.authorized) return { error: auth.error };
 
   const { data: user, error } = await supabaseAdmin.auth.admin.createUser({
     email: data.email,
@@ -93,8 +59,8 @@ export async function crearUsuario(data: {
 }
 
 export async function actualizarUsuario(id: string, data: { nombre?: string; rol?: string }) {
-  const auth = await authorizeSuperAdmin();
-  if (!auth) return { error: 'No autorizado' };
+  const auth = await authorize('usuarios.administrar');
+  if (!auth.authorized) return { error: auth.error };
 
   const { error } = await (supabaseAdmin as any)
     .from('perfiles')
@@ -108,8 +74,8 @@ export async function actualizarUsuario(id: string, data: { nombre?: string; rol
 }
 
 export async function toggleActivoUsuario(id: string) {
-  const auth = await authorizeSuperAdmin();
-  if (!auth) return { error: 'No autorizado' };
+  const auth = await authorize('usuarios.administrar');
+  if (!auth.authorized) return { error: auth.error };
 
   const perfilRaw = await (supabaseAdmin as any)
     .from('perfiles')
@@ -132,10 +98,10 @@ export async function toggleActivoUsuario(id: string) {
 }
 
 export async function eliminarUsuario(id: string) {
-  const auth = await authorizeSuperAdmin();
-  if (!auth) return { error: 'No autorizado' };
+  const auth = await authorize('usuarios.administrar');
+  if (!auth.authorized) return { error: auth.error };
 
-  const perfilRaw = await (auth as any)
+  const perfilRaw = await (auth.supabase as any)
     .from('perfiles')
     .select('activo')
     .eq('id', id)
@@ -165,10 +131,10 @@ export async function eliminarUsuario(id: string) {
 }
 
 export async function asignarSucursal(usuarioId: string, sucursalId: string) {
-  const auth = await authorizeAdmin();
-  if (!auth) return { error: 'No autorizado' };
+  const auth = await authorize('usuario_sucursal.asignar');
+  if (!auth.authorized) return { error: auth.error };
 
-  const { error } = await (supabaseAdmin as any)
+  const { error } = await (auth.supabase as any)
     .from('usuario_sucursales')
     .insert({ usuario_id: usuarioId, sucursal_id: sucursalId });
 
@@ -181,10 +147,10 @@ export async function asignarSucursal(usuarioId: string, sucursalId: string) {
 }
 
 export async function removerSucursal(usuarioId: string, sucursalId: string) {
-  const auth = await authorizeAdmin();
-  if (!auth) return { error: 'No autorizado' };
+  const auth = await authorize('usuario_sucursal.asignar');
+  if (!auth.authorized) return { error: auth.error };
 
-  const { error } = await (supabaseAdmin as any)
+  const { error } = await (auth.supabase as any)
     .from('usuario_sucursales')
     .delete()
     .eq('usuario_id', usuarioId)

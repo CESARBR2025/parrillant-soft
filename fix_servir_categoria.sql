@@ -1,9 +1,0 @@
--- Add per-category and per-round serve tracking
-
-ALTER TABLE public.ordenes
-  ADD COLUMN IF NOT EXISTS alimentos_servidos BOOLEAN NOT NULL DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS bebidas_servidos BOOLEAN NOT NULL DEFAULT FALSE;
-
-ALTER TABLE public.detalles_orden
-  ADD COLUMN IF NOT EXISTS ronda INTEGER NOT NULL DEFAULT 1,
-  ADD COLUMN IF NOT EXISTS servido BOOLEAN NOT NULL DEFAULT FALSE;

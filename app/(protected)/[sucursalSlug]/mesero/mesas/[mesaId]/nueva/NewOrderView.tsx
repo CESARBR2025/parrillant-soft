@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useNavigate } from '@/components/providers/NavigationProvider';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
@@ -31,7 +31,7 @@ interface CartItem {
 }
 
 export function NewOrderView({ mesa, categorias, productos, ordenExistente, comensales }: NewOrderViewProps) {
-  const router = useRouter();
+  const router = useNavigate();
   const sucursal = useSucursal();
   const [selectedCategoriaId, setSelectedCategoriaId] = useState<number | null>(
     categorias[0]?.id ?? null,
@@ -255,11 +255,11 @@ export function NewOrderView({ mesa, categorias, productos, ordenExistente, come
                 const destino = ordenExistente && ordenExistente.estado !== 'pendiente'
                   ? `/${sucursal?.slug}/mesero/mesas/${mesa.id}`
                   : `/${sucursal?.slug}/mesero/mapa`;
-                window.location.href = destino;
+                router.push(destino);
               }}
-              className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1"
+              className="inline-flex items-center gap-1 text-xs md:text-sm font-medium text-accent bg-accent/10 hover:bg-accent hover:text-white border border-accent/20 hover:border-accent rounded-md px-3 py-1.5 transition-colors mb-3"
             >
-              ← {ordenExistente && ordenExistente.estado !== 'pendiente' ? 'Volver a la orden' : 'Mapa de Mesas'}
+              ← {ordenExistente && ordenExistente.estado !== 'pendiente' ? 'Volver a la orden' : 'Regresar'}
             </button>
             <h1 className="text-lg md:text-xl font-bold text-text-primary">
               Mesa {mesa.numero}

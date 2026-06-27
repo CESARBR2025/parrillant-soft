@@ -4,28 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getServerSucursalId, getServerSucursalSlug } from "@/lib/sucursal";
 import { createClient } from "@supabase/supabase-js";
-
-async function verifyAdmin(
-  supabase: any,
-): Promise<{ user: any } | { error: string }> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "No autorizado" };
-
-  const perfilRaw = await (supabase as any)
-    .from("perfiles")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-
-  if (!perfil || (perfil.rol !== "super_admin" && perfil.rol !== "admin")) {
-    return { error: "No tienes permisos" };
-  }
-
-  return { user };
-}
+import { authorize } from "@/lib/auth";
 
 export async function programarApertura(
   sucursalId: string,
@@ -35,12 +14,9 @@ export async function programarApertura(
   recurrencia?: string | null,
   recurrenciaFin?: string | null,
 ) {
-  const supabase = await createServerSupabaseClient();
-  const auth = await verifyAdmin(supabase as any);
-  if ("error" in auth) {
-    console.error("[programarApertura] verifyAdmin error:", auth.error);
-    return auth;
-  }
+  const auth = await authorize("sucursal.turnos.administrar");
+  if (!auth.authorized) return { error: auth.error };
+  const supabase = auth.supabase;
 
   if (horaInicio >= horaFin) {
     return { error: "La hora de inicio debe ser anterior a la hora de fin" };
@@ -50,16 +26,6 @@ export async function programarApertura(
     return { error: "Debes especificar una fecha fin para la recurrencia" };
   }
 
-  console.log("[programarApertura] insertando apertura:", {
-    sucursalId,
-    fecha,
-    horaInicio,
-    horaFin,
-    recurrencia,
-    recurrenciaFin,
-    creada_por: auth.user.id,
-  });
-
   const { error } = await (supabase as any).from("aperturas_turno").insert({
     sucursal_id: sucursalId,
     fecha,
@@ -67,15 +33,12 @@ export async function programarApertura(
     hora_fin: horaFin,
     recurrencia: recurrencia ?? null,
     recurrencia_fin: recurrenciaFin ?? null,
-    creada_por: auth.user.id,
+    creada_por: auth.userId,
   });
 
   if (error) {
-    console.error("[programarApertura] Supabase error:", error);
     return { error: error.message };
   }
-
-  console.log("[programarApertura] insert exitoso, revalidando...");
 
   revalidatePath("/admin/turnos");
   const slug = await getServerSucursalSlug();
@@ -96,9 +59,9 @@ export async function modificarApertura(
     recurrencia_fin?: string | null;
   },
 ) {
-  const supabase = await createServerSupabaseClient();
-  const auth = await verifyAdmin(supabase as any);
-  if ("error" in auth) return auth;
+  const auth = await authorize("sucursal.turnos.administrar");
+  if (!auth.authorized) return { error: auth.error };
+  const supabase = auth.supabase;
 
   if (data.hora_inicio && data.hora_fin && data.hora_inicio >= data.hora_fin) {
     return { error: "La hora de inicio debe ser anterior a la hora de fin" };
@@ -120,14 +83,9 @@ export async function toggleApertura(aperturaId: string, activa: boolean) {
 }
 
 export async function eliminarApertura(aperturaId: string) {
-  const supabase = await createServerSupabaseClient();
-  const auth = await verifyAdmin(supabase as any);
-  if ("error" in auth) {
-    console.error("[eliminarApertura] verifyAdmin error:", auth.error);
-    return auth;
-  }
-
-  console.log("[eliminarApertura] eliminando apertura:", aperturaId);
+  const auth = await authorize("sucursal.turnos.administrar");
+  if (!auth.authorized) return { error: auth.error };
+  const supabase = auth.supabase;
 
   const { error } = await (supabase as any)
     .from("aperturas_turno")
@@ -156,9 +114,9 @@ export async function crearExcepcion(
   horaInicio: string,
   horaFin: string,
 ) {
-  const supabase = await createServerSupabaseClient();
-  const auth = await verifyAdmin(supabase as any);
-  if ("error" in auth) return auth;
+  const auth = await authorize("sucursal.turnos.administrar");
+  if (!auth.authorized) return { error: auth.error };
+  const supabase = auth.supabase;
 
   if (horaInicio >= horaFin) {
     return { error: "La hora de inicio debe ser anterior a la hora de fin" };
@@ -196,9 +154,9 @@ export async function crearExcepcion(
 }
 
 export async function eliminarExcepcion(excepcionId: string) {
-  const supabase = await createServerSupabaseClient();
-  const auth = await verifyAdmin(supabase as any);
-  if ("error" in auth) return auth;
+  const auth = await authorize("sucursal.turnos.administrar");
+  if (!auth.authorized) return { error: auth.error };
+  const supabase = auth.supabase;
 
   const { error } = await (supabase as any)
     .from("aperturas_excepciones")
@@ -333,27 +291,10 @@ export async function registrarTurno(
   sucursalId?: string,
   redirectSlug?: string,
 ) {
-  const supabase = await createServerSupabaseClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    console.error("[registrarTurno] No autorizado - sin usuario");
-    return { error: "No autorizado" };
-  }
-
-  const perfilRaw = await (supabase as any)
-    .from("perfiles")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-
-  if (!perfil || perfil.rol !== "mesero") {
-    console.error("[registrarTurno] No es mesero:", perfil?.rol);
-    return { error: "Solo los meseros pueden registrar turno" };
-  }
+  const auth = await authorize("turnos.registrar");
+  if (!auth.authorized) return { error: auth.error };
+  const supabase = auth.supabase;
+  const userId = auth.userId;
 
   if (!sucursalId) {
     const cookieId = await getServerSucursalId();
@@ -371,7 +312,7 @@ export async function registrarTurno(
   const turnoExistenteRaw = await (supabase as any)
     .from("registro_turnos_personal")
     .select("id")
-    .eq("usuario_id", user.id)
+    .eq("usuario_id", userId)
     .eq("activo", true)
     .is("fin", null)
     .maybeSingle();
@@ -469,7 +410,7 @@ export async function registrarTurno(
 
   console.log("[registrarTurno] Insertando turno:", {
     apertura_id: aperturaId,
-    usuario_id: user.id,
+    usuario_id: userId,
     sucursal_id: sucursalId,
   });
 
@@ -477,7 +418,7 @@ export async function registrarTurno(
     .from("registro_turnos_personal")
     .insert({
       apertura_id: aperturaId,
-      usuario_id: user.id,
+      usuario_id: userId,
       sucursal_id: sucursalId,
     })
     .select()
@@ -524,14 +465,7 @@ export async function cerrarTurno(turnoId: string) {
 
   if (!turno) return { error: "Turno no encontrado" };
 
-  const perfilRaw = await (supabase as any)
-    .from("perfiles")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-
-  const esAdmin = perfil?.rol === "super_admin" || perfil?.rol === "admin";
+  const esAdmin = (await authorize("turnos.cerrar_cualquiera")).authorized;
   const esPropio = turno.usuario_id === user.id;
 
   if (!esAdmin && !esPropio) {
@@ -563,23 +497,10 @@ export async function cerrarTurno(turnoId: string) {
 }
 
 export async function reasignarTurno(turnoId: string, nuevaSucursalId: string) {
-  const supabase = await createServerSupabaseClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "No autorizado" };
-
-  const perfilRaw = await (supabase as any)
-    .from("perfiles")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-
-  if (!perfil || (perfil.rol !== "super_admin" && perfil.rol !== "admin")) {
-    return { error: "No tienes permisos para reasignar turnos" };
-  }
+  const auth = await authorize("turnos.cerrar_cualquiera");
+  if (!auth.authorized) return { error: auth.error };
+  const supabase = auth.supabase;
+  const userId = auth.userId;
 
   const turnoRaw = await (supabase as any)
     .from("registro_turnos_personal")
@@ -600,7 +521,7 @@ export async function reasignarTurno(turnoId: string, nuevaSucursalId: string) {
     .update({
       fin: new Date().toISOString(),
       activo: false,
-      cerrado_por: user.id,
+      cerrado_por: userId,
     })
     .eq("id", turnoId);
 
@@ -765,13 +686,8 @@ export async function obtenerTurnoActivo(accessToken?: string) {
   } = await supabase.auth.getUser();
   if (!user) return { slug: null };
 
-  const perfilRaw = await (supabase as any)
-    .from("perfiles")
-    .select("rol")
-    .eq("id", user.id)
-    .single();
-  const perfil = perfilRaw.data as { rol: string } | null;
-  if (!perfil || perfil.rol !== "mesero") return { slug: null };
+  const auth = await authorize("turnos.registrar");
+  if (!auth.authorized) return { slug: null };
 
   const turnoRaw = await (supabase as any)
     .from("registro_turnos_personal")

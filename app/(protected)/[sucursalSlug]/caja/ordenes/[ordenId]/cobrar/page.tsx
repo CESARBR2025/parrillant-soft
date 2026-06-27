@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
+import { useNavigate } from '@/components/providers/NavigationProvider'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
 import { useSucursal } from '@/components/providers/SucursalProvider'
@@ -37,7 +38,7 @@ interface BillItem {
 
 export default function CobrarPage() {
   const { ordenId } = useParams<{ ordenId: string }>()
-  const router = useRouter()
+  const router = useNavigate()
   const supabase = createClientSupabaseClient()
   const sucursal = useSucursal()
 

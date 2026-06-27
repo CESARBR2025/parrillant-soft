@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { SucursalProvider } from '@/components/providers/SucursalProvider';
 import { fetchSucursalBySlug, fetchSucursalesByUserId } from '@/lib/sucursal';
-import type { Sucursal } from '@/types/roles';
 
 export default async function SucursalLayout({
   children,
@@ -40,9 +38,5 @@ export default async function SucursalLayout({
     redirect('/login');
   }
 
-  return (
-    <SucursalProvider sucursal={sucursal as unknown as Sucursal}>
-      {children}
-    </SucursalProvider>
-  );
+  return <>{children}</>;
 }

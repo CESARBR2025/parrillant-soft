@@ -1,17 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createMiddlewareSupabaseClient } from "@/lib/supabase/middleware";
-import type { Rol } from "./types/roles";
+import type { Rol, KnownRol } from "./types/roles";
 import { RUTA_INICIO_POR_ROL } from "./types/roles";
 
 const RUTAS_PUBLICAS = ["/login", "/auth/callback"];
 
 const RUTAS_PROTEGIDAS: Array<{ patron: RegExp; rolesPermitidos: Rol[] }> = [
-  { patron: /^\/admin(?:\/|$)/, rolesPermitidos: ["super_admin", "admin"] },
+  { patron: /^\/admin(?:\/|$)/, rolesPermitidos: ["super_admin"] },
   { patron: /^\/caja(?:\/|$)/, rolesPermitidos: ["super_admin", "admin", "caja"] },
   { patron: /^\/mesero(?:\/|$)/, rolesPermitidos: ["super_admin", "admin", "mesero"] },
   { patron: /^\/cocina(?:\/|$)/, rolesPermitidos: ["super_admin", "admin", "cocina"] },
   { patron: /^\/barra(?:\/|$)/, rolesPermitidos: ["super_admin", "admin", "barra"] },
 ];
+
+async function primeraSucursalSlug(supabase: any, userId: string): Promise<string | null> {
+  const sucRaw = await supabase
+    .from("usuario_sucursales")
+    .select("sucursales!inner(slug)")
+    .eq("usuario_id", userId)
+    .limit(1)
+    .single();
+  const suc = sucRaw.data as { sucursales: { slug: string } } | null;
+  return suc?.sucursales?.slug ?? null;
+}
 
 const RUTAS_SIN_SUCURSAL = ['login', 'admin', 'auth', '_next', 'api'];
 
@@ -88,7 +99,7 @@ export async function middleware(request: NextRequest) {
 
     const rutaProtegida = RUTAS_PROTEGIDAS.find(r => r.patron.test(internalPath));
     if (rutaProtegida && !rutaProtegida.rolesPermitidos.includes(perfil.rol as Rol)) {
-      const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol] ?? '/mesero';
+      const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as KnownRol] ?? '/mesero';
       return NextResponse.redirect(new URL(`/${sucursalSlug}${rutaInicio}`, request.url));
     }
 
@@ -127,7 +138,14 @@ export async function middleware(request: NextRequest) {
     const perfil = perfilRaw.data as { rol: string } | null;
 
     if (perfil) {
-      const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol] ?? '/mesero';
+      if (perfil.rol === 'admin') {
+        const slug = await primeraSucursalSlug(supabase, user.id);
+        if (slug) {
+          return NextResponse.redirect(new URL(`/${slug}/admin`, request.url));
+        }
+        return NextResponse.redirect(new URL("/login", request.url));
+      }
+      const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as KnownRol] ?? '/mesero';
       return NextResponse.redirect(new URL(rutaInicio, request.url));
     }
   }
@@ -146,21 +164,21 @@ export async function middleware(request: NextRequest) {
     }
 
     if (!rutaProtegida.rolesPermitidos.includes(perfil.rol as Rol)) {
-      const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as Rol] ?? '/mesero';
+      const rutaInicio = RUTA_INICIO_POR_ROL[perfil.rol as KnownRol] ?? '/mesero';
 
-      if (perfil.rol === 'super_admin' || perfil.rol === 'admin') {
+      if (perfil.rol === 'admin') {
+        const slug = await primeraSucursalSlug(supabase, user.id);
+        if (slug) {
+          return NextResponse.redirect(new URL(`/${slug}/admin`, request.url));
+        }
+        return NextResponse.redirect(new URL("/login", request.url));
+      }
+
+      if (perfil.rol === 'super_admin') {
         return NextResponse.redirect(new URL(rutaInicio, request.url));
       }
 
-      const userSucRaw = await (supabase as any)
-        .from("usuario_sucursales")
-        .select("sucursales!inner(slug)")
-        .eq("usuario_id", user.id)
-        .limit(1)
-        .single();
-      const userSuc = userSucRaw.data as { sucursales: { slug: string } } | null;
-
-      const slug = userSuc?.sucursales?.slug;
+      const slug = await primeraSucursalSlug(supabase, user.id);
       if (slug) {
         return NextResponse.redirect(new URL(`/${slug}${rutaInicio}`, request.url));
       }

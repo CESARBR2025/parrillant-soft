@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from '@/components/providers/NavigationProvider';
 import { ChevronDown, ChevronUp, Search, ScrollText } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useSucursal } from '@/components/providers/SucursalProvider';
+
 
 interface Detalle {
   id: number;
@@ -81,10 +82,11 @@ function formatElapsed(dateStr: string): string {
 }
 
 export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
-  const router = useRouter();
+  const router = useNavigate();
   const sucursal = useSucursal();
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [filter, setFilter] = useState<string>('todas');
+
 
   const filtradas = filter === 'todas'
     ? ordenes
@@ -96,9 +98,9 @@ export function OrderHistoryView({ ordenes }: { ordenes: Orden[] }) {
       <div>
         <button
           onClick={() => router.push(`/${sucursal?.slug}/mesero`)}
-          className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1"
+          className="inline-flex items-center gap-1 text-xs md:text-sm font-medium text-accent bg-accent/10 hover:bg-accent hover:text-white border border-accent/20 hover:border-accent rounded-md px-3 py-1.5 transition-colors mb-3"
         >
-          ← Mapa de Mesas
+          ← Regresar
         </button>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-accent/15 flex items-center justify-center shrink-0">

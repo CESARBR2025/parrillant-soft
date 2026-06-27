@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from '@/components/providers/NavigationProvider';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/Badge';
 import { useSucursal } from '@/components/providers/SucursalProvider';
@@ -268,7 +268,7 @@ export function ActiveOrderView({
   ordenPadre: Orden;
   subOrdenes: Orden[];
 }) {
-  const router = useRouter();
+  const router = useNavigate();
   const sucursal = useSucursal();
   const [padre, setPadre] = useState<Orden>(padreInicial);
   const [subOrdenes, setSubOrdenes] = useState<Orden[]>(subsIniciales);
@@ -365,9 +365,9 @@ export function ActiveOrderView({
         <div>
           <button
             onClick={() => router.push(`/${sucursal?.slug}/mesero/mapa`)}
-            className="text-sm text-gray-400 hover:text-gray-700 transition-colors mb-1"
+            className="inline-flex items-center gap-1 text-sm font-medium text-accent bg-accent/10 hover:bg-accent hover:text-white border border-accent/20 hover:border-accent rounded-md px-3 py-1.5 transition-colors mb-3"
           >
-            ← Mapa de Mesas
+            ← Regresar
           </button>
           <h1 className="text-xl font-bold text-gray-900">
             Mesa {mesa.numero}

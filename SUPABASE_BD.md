@@ -31,6 +31,7 @@ CREATE TYPE public.estado_mesa AS ENUM (
 CREATE TYPE public.tipo_producto AS ENUM (
 'alimento', -- Va a cocina
 'bebida', -- Va a barra
+'postre', -- Va a cocina
 'combo' -- Va a ambos (dividir en detalles_orden)
 );
 
@@ -70,10 +71,12 @@ updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
 CREATE TABLE public.categorias (
 id SERIAL PRIMARY KEY,
-nombre TEXT NOT NULL UNIQUE,
+nombre TEXT NOT NULL,
 descripcion TEXT,
+tipo public.tipo_producto NOT NULL DEFAULT 'alimento',
 activa BOOLEAN NOT NULL DEFAULT TRUE,
-orden SMALLINT NOT NULL DEFAULT 0, -- Para ordenar en la UI
+orden SMALLINT NOT NULL DEFAULT 0, -- Para ordenar en la UI (agrupado por tipo)
+sucursal_id UUID NOT NULL REFERENCES public.sucursales(id) ON DELETE CASCADE,
 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
