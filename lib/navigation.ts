@@ -179,10 +179,10 @@ export const ROLE_LABELS: Record<Rol, string> = {
 };
 
 export const ROLE_BADGE_STYLES: Record<Rol, string> = {
-  super_admin: 'bg-red-900/30 text-red-400 ring-1 ring-red-800/30',
-  admin: 'bg-amber-900/30 text-amber-400 ring-1 ring-amber-800/30',
-  caja: 'bg-green-900/30 text-green-400 ring-1 ring-green-800/30',
-  mesero: 'bg-blue-900/30 text-blue-400 ring-1 ring-blue-800/30',
-  barra: 'bg-purple-900/30 text-purple-400 ring-1 ring-purple-800/30',
-  cocina: 'bg-yellow-900/30 text-yellow-400 ring-1 ring-yellow-800/30',
+  super_admin: 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30',
+  admin: 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30',
+  caja: 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30',
+  mesero: 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30',
+  barra: 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30',
+  cocina: 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30',
 };

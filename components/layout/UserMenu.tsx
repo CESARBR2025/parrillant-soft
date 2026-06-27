@@ -42,7 +42,8 @@ export function UserMenu() {
   async function handleConfirmLogout() {
     setLoggingOut(true);
     await supabase.auth.signOut();
-    window.location.href = '/login';
+    router.push('/login');
+    router.refresh();
   }
 
   if (!user) return null;
@@ -53,28 +54,20 @@ export function UserMenu() {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-2.5 p-1.5 pl-3 rounded-xl hover:bg-accent/5 transition-colors group"
+        className="flex items-center gap-2.5 py-1 pr-1 rounded-xl hover:bg-accent/5 transition-colors group"
       >
-        <div className="hidden sm:block text-right">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-accent to-amber-400 flex items-center justify-center text-white text-xs font-bold ring-2 ring-accent/20 shadow-sm shrink-0">
+          {initials}
+        </div>
+        <div className="hidden sm:block text-left">
           <p className="text-sm font-semibold text-text-primary leading-tight">
             {perfil?.nombre}
           </p>
-          <div className="flex items-center gap-1.5 justify-end">
-            {rol && <RoleBadge rol={rol} className="text-[10px]" />}
-            {sucursal && (
-              <span className="text-[11px] text-muted truncate max-w-28">
-                {sucursal.nombre}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent to-amber-400 flex items-center justify-center text-white text-sm font-bold ring-2 ring-accent/20 shadow-sm shrink-0">
-          {initials}
+          {rol && <RoleBadge rol={rol} />}
         </div>
         <ChevronDown
-          className={`w-4 h-4 text-muted transition-transform duration-200 hidden sm:block ${
-            open ? 'rotate-180' : ''
-          }`}
+          className={`w-4 h-4 text-muted transition-transform duration-200 hidden sm:block ${open ? 'rotate-180' : ''
+            }`}
         />
       </button>
 
@@ -89,12 +82,6 @@ export function UserMenu() {
                 {perfil?.nombre}
               </p>
               {rol && <RoleBadge rol={rol} />}
-              {sucursal && (
-                <p className="text-xs text-muted mt-0.5 truncate flex items-center gap-1">
-                  <Store className="w-3 h-3 shrink-0" />
-                  {sucursal.nombre}
-                </p>
-              )}
             </div>
           </div>
 
