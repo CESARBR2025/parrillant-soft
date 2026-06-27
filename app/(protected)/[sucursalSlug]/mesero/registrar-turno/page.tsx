@@ -22,7 +22,7 @@ export default function RegistrarTurnoPage() {
       setError(result.error);
       toast.error(result.error);
     } else {
-      router.push(`/${sucursalSlug}/mesero`);
+      router.push(`/${sucursalSlug}/mesero/mapa`);
     }
   }
 

@@ -86,7 +86,7 @@ export default function LoginPage() {
             // Si ya tiene un turno activo, ir directo al dashboard
             const { slug } = await obtenerTurnoActivo(data.session?.access_token);
             if (slug) {
-                router.push(`/${slug}/mesero`);
+                router.push(`/${slug}/mesero/mapa`);
                 return;
             }
 
@@ -172,7 +172,7 @@ export default function LoginPage() {
             setConfirmarSucursal(null);
         } else {
             setConfirmarSucursal(null);
-            router.push(`/${confirmarSucursal.slug}/mesero`);
+            router.push(`/${confirmarSucursal.slug}/mesero/mapa`);
         }
     }
 

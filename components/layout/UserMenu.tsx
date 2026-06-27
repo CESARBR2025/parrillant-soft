@@ -1,43 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, ChevronDown, Store, Check } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { LogOut, ChevronDown, Store } from 'lucide-react';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { useSession } from '@/components/providers/SessionProvider';
 import { useSucursal } from '@/components/providers/SucursalProvider';
 import { RoleBadge } from './RoleBadge';
-import type { Sucursal, Rol } from '@/types/roles';
-
-async function fetchUserSucursales(userId: string, rol: Rol): Promise<Sucursal[]> {
-  const supabase = createClientSupabaseClient();
-
-  if (rol === 'super_admin' || rol === 'admin') {
-    const { data } = await supabase
-      .from('sucursales')
-      .select('id, slug, nombre')
-      .order('nombre');
-    return (data as Sucursal[]) ?? [];
-  }
-
-  const { data } = await supabase
-    .from('usuario_sucursales')
-    .select('sucursales!inner(id, slug, nombre)')
-    .eq('usuario_id', userId);
-
-  if (!data) return [];
-  return data.map((row: { sucursales: Sucursal }) => row.sucursales as Sucursal);
-}
 
 export function UserMenu() {
   const router = useRouter();
-  const pathname = usePathname();
   const { user, perfil, rol } = useSession();
   const sucursal = useSucursal();
   const supabase = createClientSupabaseClient();
 
   const [open, setOpen] = useState(false);
-  const [userSucursales, setUserSucursales] = useState<Sucursal[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,30 +37,15 @@ export function UserMenu() {
     return () => document.removeEventListener('keydown', handler);
   }, [open]);
 
-  useEffect(() => {
-    if (!user || !rol) return;
-    fetchUserSucursales(user.id, rol).then(setUserSucursales);
-  }, [user, rol]);
-
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
   }
 
-  function switchSucursal(slug: string) {
-    if (!rol) return;
-    const segments = pathname.split('/').filter(Boolean);
-    const rolePath = segments.slice(1).join('/') || rol;
-    router.push(`/${slug}/${rolePath}`);
-    setOpen(false);
-  }
-
   if (!user) return null;
 
   const initials = perfil?.nombre?.charAt(0).toUpperCase() ?? '?';
-  const puedeCambiarSucursal = rol && !['super_admin', 'admin'].includes(rol);
-  const showSucursales = puedeCambiarSucursal && userSucursales.length > 1;
 
   return (
     <div className="relative" ref={menuRef}>
@@ -133,34 +95,6 @@ export function UserMenu() {
               )}
             </div>
           </div>
-
-          {showSucursales && (
-            <div className="pt-3 pb-2">
-              <p className="px-4 pb-1 text-[11px] font-semibold text-muted uppercase tracking-wider">
-                Cambiar de sucursal
-              </p>
-              <div className="px-2 space-y-0.5">
-                {userSucursales.map((s) => {
-                  const isActive = s.id === sucursal?.id;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => switchSucursal(s.slug)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                        isActive
-                          ? 'bg-accent/10 text-accent font-medium'
-                          : 'text-text-primary hover:bg-bg-base'
-                      }`}
-                    >
-                      <Store className="w-4 h-4 shrink-0" />
-                      <span className="flex-1 text-left truncate">{s.nombre}</span>
-                      {isActive && <Check className="w-4 h-4 shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           <div className="border-t border-border/40 p-2">
             <button
