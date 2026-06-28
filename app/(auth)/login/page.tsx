@@ -63,12 +63,12 @@ export default function LoginPage() {
 
         const rol = perfil.rol as Rol;
 
-        if (rol === 'super_admin') {
+        if (rol === 'super_admin' || rol === 'administrador') {
             router.push('/admin');
             return;
         }
 
-        if (rol === 'admin') {
+        if (rol === 'gerente_sucursal') {
             const userSucursalesRaw = await supabase
                 .from('usuario_sucursales')
                 .select('sucursales!inner(slug)');

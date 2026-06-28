@@ -39,29 +39,35 @@ export default async function AdminRolesPage() {
     }
   }
 
+  const { data: permisos } = await (supabase as any)
+    .from('permisos')
+    .select('codigo, descripcion')
+    .order('codigo');
+
+  const { data: rolesPermisos } = await (supabase as any)
+    .from('roles_permisos')
+    .select('rol_nombre, permiso_codigo');
+
+  const permisosPorRol: Record<string, string[]> = {};
+  if (rolesPermisos) {
+    for (const rp of rolesPermisos as { rol_nombre: string; permiso_codigo: string }[]) {
+      if (!permisosPorRol[rp.rol_nombre]) permisosPorRol[rp.rol_nombre] = [];
+      permisosPorRol[rp.rol_nombre].push(rp.permiso_codigo);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <a
-          href="/admin"
-          className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1 inline-block"
-        >
-          ← Panel Global
-        </a>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-text-primary">Roles del Sistema</h1>
-            <p className="text-sm text-muted mt-1">
-              Gestiona los roles del sistema
-            </p>
-          </div>
-        </div>
+        <h1 className="text-xl font-bold text-text-primary">Roles del Sistema</h1>
       </div>
 
       <RolesClient
         roles={(roles as any[]) ?? []}
         conteo={conteo}
         badgeStyles={ROLE_BADGE_STYLES}
+        permisos={(permisos as { codigo: string; descripcion: string }[]) ?? []}
+        permisosPorRol={permisosPorRol}
       />
     </div>
   );

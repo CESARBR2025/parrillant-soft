@@ -52,30 +52,50 @@ export default async function AdminUsuariosPage() {
     sucursalesPorUsuario[sid].push(a.sucursales);
   }
 
+  const perfiles = (perfilesRaw.data ?? []) as any[];
+  const usuariosPorSucursal: Record<string, typeof perfiles> = {};
+  const usuariosSinSucursal: typeof perfiles = [];
+  const usuariosGlobales: typeof perfiles = [];
+
+  for (const p of perfiles) {
+    if (p.rol === 'super_admin') {
+      usuariosGlobales.push(p);
+    } else {
+      const sucs = sucursalesPorUsuario[p.id];
+      if (!sucs || sucs.length === 0) {
+        usuariosSinSucursal.push(p);
+      } else {
+        for (const s of sucs) {
+          if (!usuariosPorSucursal[s.id]) usuariosPorSucursal[s.id] = [];
+          usuariosPorSucursal[s.id].push(p);
+        }
+      }
+    }
+  }
+
   const sucursalesRaw = await supabase
     .from('sucursales')
     .select('*')
     .eq('activa', true)
     .order('nombre');
 
+  const sucursalesList = (sucursalesRaw.data ?? []) as any[];
+
   return (
     <div className="space-y-6">
       <div>
-        <a
-          href="/admin"
-          className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1 inline-block"
-        >
-          ← Panel Global
-        </a>
         <h1 className="text-xl font-bold text-text-primary">Usuarios</h1>
-        <p className="text-sm text-muted mt-1">{perfilesRaw.data?.length ?? 0} usuarios registrados</p>
+        <p className="text-sm text-muted mt-1">{perfiles.length} usuarios registrados</p>
       </div>
 
       <AdminUsuariosClient
-        initialUsuarios={(perfilesRaw.data ?? []) as any[]}
+        initialUsuarios={perfiles}
         emails={emails}
         sucursalesPorUsuario={sucursalesPorUsuario}
-        sucursales={(sucursalesRaw.data ?? []) as any[]}
+        sucursales={sucursalesList}
+        usuariosPorSucursal={usuariosPorSucursal}
+        usuariosSinSucursal={usuariosSinSucursal}
+        usuariosGlobales={usuariosGlobales}
       />
     </div>
   );

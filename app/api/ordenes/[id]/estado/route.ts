@@ -8,7 +8,16 @@ const TRANSICIONES_VALIDAS: Record<string, string[]> = {
   cocina: ["en_preparacion", "listo"],
   barra: ["en_preparacion", "listo"],
   caja: ["cerrado", "cancelado"],
-  admin: [
+  administrador: [
+    "pendiente",
+    "en_preparacion",
+    "listo",
+    "entregado",
+    "cuenta_solicitada",
+    "cerrado",
+    "cancelado",
+  ],
+  gerente_sucursal: [
     "pendiente",
     "en_preparacion",
     "listo",

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { Store, Users, ClipboardList } from 'lucide-react';
+import { Store, Users, ClipboardList, DollarSign } from 'lucide-react';
 
 export default async function GlobalAdminPage() {
   const supabase = await createServerSupabaseClient();
@@ -25,6 +25,8 @@ export default async function GlobalAdminPage() {
     .select('id, slug, nombre, activa');
   const sucursales: { id: string; slug: string; nombre: string; activa: boolean }[] = sucursalesRaw.data ?? [];
 
+  const todayStart = new Date(new Date().setHours(0,0,0,0)).toISOString();
+
   const stats = await Promise.all(
     sucursales.map(async (s) => {
       const { count: mesas } = await supabase
@@ -39,9 +41,26 @@ export default async function GlobalAdminPage() {
         .eq('sucursal_id', s.id)
         .in('estado', ['pendiente', 'en_preparacion']);
 
-      return { ...s, mesasActivas: mesas ?? 0, ordenesActivas: ordenes ?? 0 };
+      const { data: ingresos } = await supabase
+        .from('ordenes')
+        .select('total')
+        .eq('sucursal_id', s.id)
+        .eq('estado', 'cerrado')
+        .gte('updated_at', todayStart);
+
+      const ingresosHoy = (ingresos as { total: number | null }[] | null)?.reduce((sum, o) => sum + (o.total ?? 0), 0) ?? 0;
+
+      return { ...s, mesasActivas: mesas ?? 0, ordenesActivas: ordenes ?? 0, ingresosHoy };
     })
   );
+
+  const { data: ingresosHoy } = await supabase
+    .from('ordenes')
+    .select('total')
+    .eq('estado', 'cerrado')
+    .gte('updated_at', todayStart);
+
+  const totalHoy = (ingresosHoy as { total: number | null }[] | null)?.reduce((sum, o) => sum + (o.total ?? 0), 0) ?? 0;
 
   return (
     <div className="space-y-6">
@@ -51,31 +70,22 @@ export default async function GlobalAdminPage() {
       </div>
 
       <div className="bg-card border-2 border-border-default rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">Resumen General</h2>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/admin/usuarios"
-              className="text-sm text-accent hover:underline flex items-center gap-1"
-            >
-              <Users className="w-4 h-4" />
-              Usuarios
-            </Link>
-            <Link
-              href="/admin/sucursales"
-              className="text-sm text-accent hover:underline flex items-center gap-1"
-            >
-              <Store className="w-4 h-4" />
-              Sucursales
-            </Link>
-          </div>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <h2 className="text-lg font-semibold text-text-primary mb-4">Resumen General</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="flex items-center gap-3 p-4 rounded-xl bg-bg-base">
             <Store className="w-5 h-5 text-accent" />
             <div>
               <p className="text-sm text-muted">Sucursales</p>
               <p className="text-xl font-bold text-text-primary">{stats.length}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-bg-base">
+            <DollarSign className="w-5 h-5 text-accent" />
+            <div>
+              <p className="text-sm text-muted">$ Recaudado Hoy</p>
+              <p className="text-xl font-bold text-text-primary">
+                ${totalHoy.toLocaleString('es-MX')}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-4 rounded-xl bg-bg-base">
@@ -117,6 +127,10 @@ export default async function GlobalAdminPage() {
                   <span className="flex items-center gap-1.5 text-muted">
                     <ClipboardList className="w-4 h-4" />
                     {s.ordenesActivas} órdenes
+                  </span>
+                  <span className="flex items-center gap-1.5 text-accent font-medium">
+                    <DollarSign className="w-4 h-4" />
+                    ${s.ingresosHoy.toLocaleString('es-MX')}
                   </span>
                 </div>
               </Link>

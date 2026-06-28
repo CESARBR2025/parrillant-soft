@@ -1,6 +1,5 @@
 export type KnownRol =
   | "super_admin"
-  | "admin"
   | "caja"
   | "mesero"
   | "barra"
@@ -31,7 +30,6 @@ export const ROL_NIVEL: Record<KnownRol, number> = {
   mesero: 2,
   caja: 3,
   gerente_sucursal: 4,
-  admin: 4,
   administrador: 5,
   super_admin: 6,
 };
@@ -44,7 +42,6 @@ export function tienePermiso(rolUsuario: Rol, rolRequerido: KnownRol): boolean {
 export const RUTAS_POR_ROL: Record<KnownRol, string[]> = {
   super_admin: ["/admin", "/caja", "/mesero", "/cocina", "/barra"],
   administrador: ["/admin", "/caja", "/mesero", "/cocina", "/barra"],
-  admin: ["/admin", "/caja", "/mesero", "/cocina", "/barra"],
   gerente_sucursal: ["/admin", "/caja", "/mesero", "/cocina", "/barra"],
   caja: ["/caja"],
   mesero: ["/mesero"],
@@ -55,7 +52,6 @@ export const RUTAS_POR_ROL: Record<KnownRol, string[]> = {
 export const RUTA_INICIO_POR_ROL: Record<KnownRol, string> = {
   super_admin: "/admin",
   administrador: "/admin",
-  admin: "/admin",
   gerente_sucursal: "/admin",
   caja: "/caja",
   mesero: "/mesero",
@@ -70,7 +66,6 @@ export function obtenerLabelRol(rol: Rol): string {
     mesero: 'Mesero',
     caja: 'Caja',
     gerente_sucursal: 'Gerente Sucursal',
-    admin: 'Admin (legacy)',
     administrador: 'Administrador',
     super_admin: 'Super Administrador',
   };

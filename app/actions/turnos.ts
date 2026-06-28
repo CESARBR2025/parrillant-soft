@@ -183,9 +183,8 @@ export async function obtenerCalendarioMensual(
     .from("aperturas_turno")
     .select("*")
     .eq("sucursal_id", sucursalId)
-    .gte("fecha", primerDia)
-    .lte("fecha", ultimoDia)
     .eq("activa", true)
+    .lte("fecha", ultimoDia)
     .order("fecha");
 
   if (aperturasRaw.error) {
@@ -198,12 +197,11 @@ export async function obtenerCalendarioMensual(
 
   const aperturas: any[] = aperturasRaw.data ?? [];
 
-  // Filtrar: incluir solo las que están activas y cubren este mes
+  // Filtrar: incluir solo las que cubren este mes
   const aperturasDelMes = aperturas.filter((a: any) => {
     if (!a.recurrencia) {
       return a.fecha >= primerDia && a.fecha <= ultimoDia;
     }
-    // Recurrente: fecha_inicio <= ultimoDia AND (recurrencia_fin >= primerDia OR recurrencia_fin IS NULL)
     return (
       a.fecha <= ultimoDia &&
       (!a.recurrencia_fin || a.recurrencia_fin >= primerDia)
@@ -250,12 +248,7 @@ export async function obtenerCalendarioMensual(
           a.fecha <= fechaStr &&
           (!a.recurrencia_fin || a.recurrencia_fin >= fechaStr)
         ) {
-          if (a.recurrencia === "semanal") {
-            // Todos los días de la semana
-            aperturaAsignada = a;
-            break;
-          } else if (a.recurrencia === "mensual") {
-            // Todos los días del mes
+          if (a.recurrencia === "semanal" || a.recurrencia === "mensual" || a.recurrencia === "anual") {
             aperturaAsignada = a;
             break;
           }
