@@ -53,6 +53,7 @@ export const NAV_ITEMS: Record<KnownRol, NavItem[]> = {
     { label: 'Sucursales', href: '/admin/sucursales', icon: Building2 },
     { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
     { label: 'Turnos', href: '/admin/turnos', icon: CalendarClock },
+    { label: 'Menú', href: '/admin/menu', icon: UtensilsCrossed },
   ],
   gerente_sucursal: [
     { label: 'Panel', href: '/admin', icon: LayoutDashboard },
@@ -103,6 +104,7 @@ export const NAV_SECTIONS: Record<KnownRol, NavSection[]> = {
         { label: 'Sucursales', href: '/admin/sucursales', icon: Building2 },
         { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
         { label: 'Turnos', href: '/admin/turnos', icon: CalendarClock },
+        { label: 'Menú', href: '/admin/menu', icon: UtensilsCrossed },
       ],
     },
   ],

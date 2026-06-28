@@ -25,7 +25,7 @@ export default async function GlobalAdminPage() {
     .select('id, slug, nombre, activa');
   const sucursales: { id: string; slug: string; nombre: string; activa: boolean }[] = sucursalesRaw.data ?? [];
 
-  const todayStart = new Date(new Date().setHours(0,0,0,0)).toISOString();
+  const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
 
   const stats = await Promise.all(
     sucursales.map(async (s) => {
@@ -82,7 +82,7 @@ export default async function GlobalAdminPage() {
           <div className="flex items-center gap-3 p-4 rounded-xl bg-bg-base">
             <DollarSign className="w-5 h-5 text-accent" />
             <div>
-              <p className="text-sm text-muted">$ Recaudado Hoy</p>
+              <p className="text-sm text-muted">Recaudado Hoy</p>
               <p className="text-xl font-bold text-text-primary">
                 ${totalHoy.toLocaleString('es-MX')}
               </p>
