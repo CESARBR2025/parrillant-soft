@@ -25,7 +25,7 @@ export default async function AdminMenuPage({
     .single();
   const perfil = perfilRaw.data as { rol: string } | null;
 
-  if (!perfil || (perfil.rol !== 'admin' && perfil.rol !== 'super_admin')) {
+  if (!perfil || (perfil.rol !== 'gerente_sucursal' && perfil.rol !== 'super_admin' && perfil.rol !== 'administrador')) {
     redirect(`/${sucursalSlug}/admin`);
   }
 

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { RUTA_INICIO_POR_ROL } from '@/types/roles';
-import type { Rol, KnownRol } from '@/types/roles';
+import type { KnownRol } from '@/types/roles';
 
 export default async function Home() {
   const supabase = await createServerSupabaseClient();
@@ -23,13 +23,13 @@ export default async function Home() {
     redirect('/login');
   }
 
-  const rol = perfil.rol as Rol;
+  const rol = perfil.rol;
 
-  if (rol === 'super_admin') {
+  if (rol === 'super_admin' || rol === 'administrador') {
     redirect('/admin');
   }
 
-  if (rol === 'admin') {
+  if (rol === 'gerente_sucursal') {
     const userSucRaw = await (supabase as any)
       .from('usuario_sucursales')
       .select('sucursales!inner(slug)')

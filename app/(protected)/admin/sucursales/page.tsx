@@ -38,6 +38,11 @@ export default async function AdminSucursalesPage() {
     .select('sucursal_id');
   const mesas: { sucursal_id: string }[] = mesasRaw.data as unknown as { sucursal_id: string }[] ?? [];
 
+  const usuariosRaw = await supabase
+    .from('usuario_sucursales')
+    .select('sucursal_id');
+  const usuarios: { sucursal_id: string }[] = usuariosRaw.data as unknown as { sucursal_id: string }[] ?? [];
+
   const mesasPorSucursal: Record<string, number> = {};
   for (const m of mesas) {
     mesasPorSucursal[m.sucursal_id] = (mesasPorSucursal[m.sucursal_id] ?? 0) + 1;
@@ -48,23 +53,25 @@ export default async function AdminSucursalesPage() {
     categoriasPorSucursal[c.sucursal_id] = (categoriasPorSucursal[c.sucursal_id] ?? 0) + 1;
   }
 
+  const usuariosPorSucursal: Record<string, number> = {};
+  for (const u of usuarios) {
+    usuariosPorSucursal[u.sucursal_id] = (usuariosPorSucursal[u.sucursal_id] ?? 0) + 1;
+  }
+
+  const activas = sucursales?.filter(s => s.activa).length ?? 0;
+
   return (
     <div className="space-y-6">
       <div>
-        <a
-          href="/admin"
-          className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1 inline-block"
-        >
-          ← Panel Global
-        </a>
         <h1 className="text-xl font-bold text-text-primary">Sucursales</h1>
-        <p className="text-sm text-muted mt-1">{sucursales?.length ?? 0} sucursales registradas</p>
       </div>
 
       <SucursalesClient
         initialSucursales={sucursales as unknown as Tables<'sucursales'>[]}
         mesasCount={mesasPorSucursal}
         categoriasCount={categoriasPorSucursal}
+        usuariosCount={usuariosPorSucursal}
+        totalActivas={activas}
       />
     </div>
   );

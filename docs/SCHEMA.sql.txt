@@ -1,0 +1,41 @@
+-- Exportar schema completo a docs/SCHEMA.md
+-- Pegar en SQL Editor de Supabase y guardar resultado
+
+-- Tablas
+SELECT json_agg(json_build_object(
+  'table_schema', t.table_schema,
+  'table_name', t.table_name,
+  'column_name', c.column_name,
+  'data_type', c.data_type,
+  'is_nullable', c.is_nullable,
+  'column_default', c.column_default,
+  'character_maximum_length', c.character_maximum_length
+) ORDER BY t.table_name, c.ordinal_position)
+FROM information_schema.tables t
+JOIN information_schema.columns c ON c.table_schema = t.table_schema AND c.table_name = t.table_name
+WHERE t.table_schema = 'public'
+  AND t.table_type = 'BASE TABLE';
+
+-- RLS Policies
+SELECT json_agg(json_build_object(
+  'schemaname', schemaname,
+  'tablename', tablename,
+  'policyname', policyname,
+  'permissive', permissive,
+  'roles', roles,
+  'cmd', cmd,
+  'qual', qual,
+  'with_check', with_check
+) ORDER BY tablename, policyname)
+FROM pg_policies
+WHERE schemaname = 'public';
+
+-- Funciones
+SELECT json_agg(json_build_object(
+  'function_name', p.proname,
+  'return_type', pg_get_function_result(p.oid),
+  'definition', pg_get_functiondef(p.oid)
+) ORDER BY p.proname)
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public';

@@ -23,7 +23,7 @@ export default async function SucursalTurnosPage({
     .single();
   const perfil = perfilRaw.data as { rol: string } | null;
 
-  if (!perfil || (perfil.rol !== 'admin' && perfil.rol !== 'super_admin')) {
+  if (!perfil || (perfil.rol !== 'gerente_sucursal' && perfil.rol !== 'super_admin' && perfil.rol !== 'administrador')) {
     redirect(`/${sucursalSlug}/admin`);
   }
 
@@ -55,7 +55,6 @@ export default async function SucursalTurnosPage({
     .is('fin', null);
   const turnos: { id: string; usuario_id: string; inicio: string }[] = turnosRaw.data ?? [];
 
-  // Obtener nombres de los meseros
   const userIds = turnos.map(t => t.usuario_id);
   let nombresMap: Record<string, string> = {};
   if (userIds.length > 0) {
@@ -83,19 +82,32 @@ export default async function SucursalTurnosPage({
     .order('nombre');
   const todasSucursales: { id: string; slug: string; nombre: string }[] = todasSucursalesRaw.data ?? [];
 
+  const hoy = new Date().toISOString().split('T')[0];
+  const horaActual = new Date().toTimeString().slice(0, 5);
+  const aperturaHoyActiva = aperturas.some(
+    a => a.activa && a.fecha === hoy &&
+      a.hora_inicio <= horaActual &&
+      a.hora_fin >= horaActual
+  );
+
+  const activasRaw = await supabase
+    .from('aperturas_turno')
+    .select('id')
+    .eq('sucursal_id', sucursalId)
+    .eq('activa', true);
+
+  const totalActivas = (activasRaw.data ?? []).length;
+
   return (
     <div className="space-y-6">
-      <a
-        href={`/${sucursalSlug}/admin`}
-        className="text-xs md:text-sm text-muted hover:text-body transition-colors mb-1 inline-block"
-      >
-        ← Panel de Administración
-      </a>
       <TurnosBranchClient
         aperturas={aperturas}
         turnosActivos={turnosActivos}
         sucursal={sucursal}
         todasSucursales={todasSucursales}
+        aperturaHoyActiva={aperturaHoyActiva}
+        totalActivos={turnosActivos.length}
+        totalActivas={totalActivas}
       />
     </div>
   );

@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { Store, Clock, UserCheck, CalendarClock } from 'lucide-react';
-import type { Rol } from '@/types/roles';
+import {
+  Store, Clock, UserCheck, CalendarClock, ExternalLink, ChevronRight,
+} from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,7 @@ export default async function GlobalTurnosPage() {
   if (sucursales.length === 0) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-text-primary">Turnos</h1>
+        <h1 className="text-xl font-bold text-text-primary">Turnos</h1>
         <p className="text-muted">No hay sucursales registradas.</p>
       </div>
     );
@@ -53,6 +54,7 @@ export default async function GlobalTurnosPage() {
           .select('id, hora_inicio, hora_fin, activa, recurrencia')
           .eq('sucursal_id', s.id)
           .eq('fecha', hoy)
+          .is('recurrencia', null)
           .order('hora_inicio')
           .then(r => (r.data ?? []) as { id: string; hora_inicio: string; hora_fin: string; activa: boolean; recurrencia: string | null }[]),
         supabase
@@ -71,37 +73,24 @@ export default async function GlobalTurnosPage() {
         a => a.activa && a.hora_inicio <= horaActual && a.hora_fin >= horaActual
       );
 
-      const { count: meserosActivos } = await supabase
+      const activosRaw = await supabase
         .from('registro_turnos_personal')
-        .select('*', { count: 'exact', head: true })
+        .select('id')
         .eq('sucursal_id', s.id)
         .eq('activo', true)
         .is('fin', null);
 
-      const { count: proxAperturasUnicas } = await supabase
+      const activasRaw = await supabase
         .from('aperturas_turno')
-        .select('*', { count: 'exact', head: true })
+        .select('id')
         .eq('sucursal_id', s.id)
-        .gte('fecha', hoy)
-        .eq('activa', true)
-        .is('recurrencia', null);
-
-      const { count: proxAperturasRecurrentes } = await supabase
-        .from('aperturas_turno')
-        .select('*', { count: 'exact', head: true })
-        .eq('sucursal_id', s.id)
-        .lte('fecha', hoy)
-        .gte('recurrencia_fin', hoy)
-        .eq('activa', true)
-        .not('recurrencia', 'is', null);
-
-      const proxAperturas = (proxAperturasUnicas ?? 0) + (proxAperturasRecurrentes ?? 0);
+        .eq('activa', true);
 
       return {
         ...s,
         aperturaActiva,
-        meserosActivos: meserosActivos ?? 0,
-        proxAperturas: proxAperturas ?? 0,
+        meserosActivos: (activosRaw.data ?? []).length,
+        totalActivas: (activasRaw.data ?? []).length,
         aperturasHoy: aperturasHoy ?? [],
       };
     })
@@ -110,39 +99,47 @@ export default async function GlobalTurnosPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-text-primary">Turnos</h1>
-        <p className="text-sm text-muted mt-1">
-          Administra los turnos por sucursal
-        </p>
+        <h1 className="text-xl font-bold text-text-primary">Turnos</h1>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Branch grid */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {stats.map(s => (
-          <Link
+          <a
             key={s.id}
             href={`/${s.slug}/admin/turnos`}
-            className="bg-card rounded-2xl border-2 border-border-default p-6 hover:border-accent/50 transition-all"
+            className={`group bg-card border-2 rounded-2xl p-5 transition-all duration-200 hover:shadow-lg hover:border-accent/20 ${s.activa ? 'border-border/60' : 'border-border/40 opacity-75'
+              }`}
           >
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                s.aperturaActiva ? 'bg-green-500/15' : 'bg-accent/10'
-              }`}>
+            {/* Header */}
+            <div className="flex items-start gap-3 mb-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${s.aperturaActiva ? 'bg-green-500/15' : 'bg-accent/10'
+                }`}>
                 <Store className={`w-5 h-5 ${s.aperturaActiva ? 'text-green-500' : 'text-accent'}`} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-text-primary truncate">{s.nombre}</p>
-                {s.aperturaActiva && (
-                  <span className="inline-flex items-center gap-1 text-xs text-green-500">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                    Turno abierto ahora
-                  </span>
-                )}
+                <p className="font-bold text-text-primary truncate group-hover:text-accent transition-colors">
+                  {s.nombre}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant={s.activa ? 'success' : 'danger'} className="text-[10px] px-1.5 py-0.5">
+                    {s.activa ? 'Activa' : 'Inactiva'}
+                  </Badge>
+                  {s.aperturaActiva && (
+                    <span className="inline-flex items-center gap-1 text-xs text-green-500">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                      Abierto
+                    </span>
+                  )}
+                </div>
               </div>
+              <ChevronRight className="w-5 h-5 text-muted group-hover:text-accent transition-colors shrink-0" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-bg-base">
-                <UserCheck className="w-4 h-4 text-accent shrink-0" />
+                <UserCheck className="w-4 h-4 text-blue-500 shrink-0" />
                 <div>
                   <p className="text-lg font-bold text-text-primary leading-tight">{s.meserosActivos}</p>
                   <p className="text-[10px] text-muted leading-tight">Activos</p>
@@ -151,25 +148,35 @@ export default async function GlobalTurnosPage() {
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-bg-base">
                 <CalendarClock className="w-4 h-4 text-amber-500 shrink-0" />
                 <div>
-                  <p className="text-lg font-bold text-text-primary leading-tight">{s.proxAperturas}</p>
-                  <p className="text-[10px] text-muted leading-tight">Programados</p>
+                  <p className="text-lg font-bold text-text-primary leading-tight">{s.totalActivas}</p>
+                  <p className="text-[10px] text-muted leading-tight">Activas</p>
                 </div>
               </div>
             </div>
 
+            {/* Today's schedule */}
             {s.aperturasHoy.length > 0 && (
-              <div className="mt-3 space-y-1">
+              <div className="space-y-1 pt-2 border-t border-border/40">
+                <p className="text-[10px] text-muted font-semibold uppercase tracking-wider">Hoy</p>
                 {s.aperturasHoy.map(a => (
                   <div key={a.id} className="flex items-center justify-between text-xs">
-                    <span className="text-muted">{a.hora_inicio.slice(0, 5)} - {a.hora_fin.slice(0, 5)}</span>
+                    <span className="text-muted flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {a.hora_inicio.slice(0, 5)} – {a.hora_fin.slice(0, 5)}
+                    </span>
                     <span className={a.activa ? 'text-green-500' : 'text-muted'}>
                       {a.activa ? 'Activo' : 'Inactivo'}
+                      {a.recurrencia && (
+                        <span className="ml-1 text-muted">
+                          ({a.recurrencia === 'semanal' ? 'Semanal' : a.recurrencia === 'mensual' ? 'Mensual' : 'Anual'})
+                        </span>
+                      )}
                     </span>
                   </div>
                 ))}
               </div>
             )}
-          </Link>
+          </a>
         ))}
       </div>
     </div>

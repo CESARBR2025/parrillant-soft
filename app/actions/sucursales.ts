@@ -167,16 +167,6 @@ export async function eliminarSucursal(id: string) {
   const auth = await authorize('sucursales.administrar');
   if (!auth.authorized) return { error: auth.error };
 
-  const mesasRaw = await (auth.supabase as any)
-    .from('mesas')
-    .select('*', { count: 'exact', head: true })
-    .eq('sucursal_id', id);
-  const mesas = mesasRaw.count;
-
-  if (mesas && mesas > 0) {
-    return { error: 'No se puede eliminar: la sucursal tiene mesas registradas. Desactívala en su lugar.' };
-  }
-
   const ordenesRaw = await (auth.supabase as any)
     .from('ordenes')
     .select('*', { count: 'exact', head: true })
@@ -188,6 +178,22 @@ export async function eliminarSucursal(id: string) {
   }
 
   await (auth.supabase as any).from('usuario_sucursales').delete().eq('sucursal_id', id);
+  await (auth.supabase as any).from('registro_turnos_personal').delete().eq('sucursal_id', id);
+  await (auth.supabase as any).from('aperturas_excepciones').delete().eq('sucursal_id', id);
+  await (auth.supabase as any).from('aperturas_turno').delete().eq('sucursal_id', id);
+
+  // Eliminar productos primero (FK → categorias), luego categorias
+  const catIds = await (auth.supabase as any)
+    .from('categorias')
+    .select('id')
+    .eq('sucursal_id', id);
+  const categoriasIds: { id: string }[] = catIds.data ?? [];
+  if (categoriasIds.length > 0) {
+    const ids = categoriasIds.map((c: { id: string }) => c.id);
+    await (auth.supabase as any).from('productos_menu').delete().in('categoria_id', ids);
+  }
+  await (auth.supabase as any).from('categorias').delete().eq('sucursal_id', id);
+  await (auth.supabase as any).from('mesas').delete().eq('sucursal_id', id);
 
   const { error } = await (auth.supabase as any)
     .from('sucursales')

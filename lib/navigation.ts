@@ -53,17 +53,7 @@ export const NAV_ITEMS: Record<KnownRol, NavItem[]> = {
     { label: 'Sucursales', href: '/admin/sucursales', icon: Building2 },
     { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
     { label: 'Turnos', href: '/admin/turnos', icon: CalendarClock },
-  ],
-  admin: [
-    { label: 'Panel', href: '/admin', icon: LayoutDashboard },
     { label: 'Menú', href: '/admin/menu', icon: UtensilsCrossed },
-    { label: 'Mesas', href: '/admin/mesas', icon: Table2 },
-    { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
-    { label: 'Mapa', href: '/mesero/mapa', icon: Grid3x3 },
-    { label: 'Cocina', href: '/cocina', icon: CookingPot },
-    { label: 'Barra', href: '/barra', icon: Wine },
-    { label: 'Caja', href: '/caja', icon: CreditCard },
-    { label: 'Órdenes', href: '/mesero', icon: ClipboardList },
   ],
   gerente_sucursal: [
     { label: 'Panel', href: '/admin', icon: LayoutDashboard },
@@ -114,6 +104,7 @@ export const NAV_SECTIONS: Record<KnownRol, NavSection[]> = {
         { label: 'Sucursales', href: '/admin/sucursales', icon: Building2 },
         { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
         { label: 'Turnos', href: '/admin/turnos', icon: CalendarClock },
+        { label: 'Menú', href: '/admin/menu', icon: UtensilsCrossed },
       ],
     },
   ],
@@ -130,27 +121,6 @@ export const NAV_SECTIONS: Record<KnownRol, NavSection[]> = {
         { label: 'Sucursales', href: '/admin/sucursales', icon: Building2 },
         { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
         { label: 'Turnos', href: '/admin/turnos', icon: CalendarClock },
-      ],
-    },
-  ],
-  admin: [
-    {
-      label: 'Gestión',
-      items: [
-        { label: 'Panel', href: '/admin', icon: LayoutDashboard },
-        { label: 'Menú', href: '/admin/menu', icon: UtensilsCrossed },
-        { label: 'Mesas', href: '/admin/mesas', icon: Table2 },
-        { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
-      ],
-    },
-    {
-      label: 'Operación',
-      items: [
-        { label: 'Mapa', href: '/mesero/mapa', icon: Grid3x3 },
-        { label: 'Cocina', href: '/cocina', icon: CookingPot },
-        { label: 'Barra', href: '/barra', icon: Wine },
-        { label: 'Caja', href: '/caja', icon: CreditCard },
-        { label: 'Órdenes', href: '/mesero', icon: ClipboardList },
       ],
     },
   ],
@@ -215,7 +185,6 @@ export const NAV_SECTIONS: Record<KnownRol, NavSection[]> = {
 export const ROLE_LABELS: Record<KnownRol, string> = {
   super_admin: 'Super Administrador',
   administrador: 'Administrador',
-  admin: 'Admin (legacy)',
   gerente_sucursal: 'Gerente Sucursal',
   caja: 'Caja',
   mesero: 'Mesero',
@@ -226,7 +195,6 @@ export const ROLE_LABELS: Record<KnownRol, string> = {
 export const ROLE_BADGE_STYLES: Record<KnownRol, string> = {
   super_admin: 'bg-red-500/15 text-red-500 ring-1 ring-red-500/30',
   administrador: 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30',
-  admin: 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/30',
   gerente_sucursal: 'bg-blue-500/15 text-blue-500 ring-1 ring-blue-500/30',
   caja: 'bg-green-500/15 text-green-500 ring-1 ring-green-500/30',
   mesero: 'bg-sky-500/15 text-sky-500 ring-1 ring-sky-500/30',

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { SessionProvider } from '@/components/providers/SessionProvider';
+import { PermisoProvider } from '@/components/providers/PermisoProvider';
 import { SucursalProvider } from '@/components/providers/SucursalProvider';
 import { HeaderActionsProvider } from '@/components/providers/HeaderActionsProvider';
 import { NavigationProvider } from '@/components/providers/NavigationProvider';
@@ -43,6 +44,7 @@ export default async function ProtectedLayout({
 
   return (
       <SessionProvider initialUser={user} initialPerfil={perfil as unknown as Perfil}>
+        <PermisoProvider>
         <NavigationProvider>
         <HeaderActionsProvider>
           <SucursalProvider sucursal={sucursal as unknown as Sucursal}>
@@ -51,6 +53,7 @@ export default async function ProtectedLayout({
           </SucursalProvider>
         </HeaderActionsProvider>
         </NavigationProvider>
+        </PermisoProvider>
       </SessionProvider>
   );
 }

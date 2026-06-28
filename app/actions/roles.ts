@@ -9,14 +9,13 @@ export async function crearRol(formData: FormData) {
   const nombre = (formData.get('nombre') as string)?.trim().toLowerCase().replace(/\s+/g, '_');
   const etiqueta = (formData.get('etiqueta') as string)?.trim();
   const descripcion = (formData.get('descripcion') as string)?.trim();
-  const nivel = parseInt(formData.get('nivel') as string, 10);
 
-  if (!nombre || !etiqueta || isNaN(nivel)) {
-    return { error: 'Nombre, etiqueta y nivel son requeridos' };
+  if (!nombre || !etiqueta) {
+    return { error: 'Nombre y etiqueta son requeridos' };
   }
 
   const { error } = await (auth.supabase.from('roles') as any)
-    .insert({ nombre, etiqueta, descripcion, nivel });
+    .insert({ nombre, etiqueta, descripcion, nivel: 1 });
 
   if (error) return { error: error.message };
   return { success: true };
@@ -38,6 +37,30 @@ export async function eliminarRol(nombre: string) {
   const { error } = await (auth.supabase.from('roles') as any)
     .delete()
     .eq('nombre', nombre);
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function asignarPermiso(rolNombre: string, permisoCodigo: string) {
+  const auth = await authorize('roles.administrar');
+  if (!auth.authorized) return { error: auth.error };
+
+  const { error } = await (auth.supabase.from('roles_permisos') as any)
+    .insert({ rol_nombre: rolNombre, permiso_codigo: permisoCodigo });
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function removerPermiso(rolNombre: string, permisoCodigo: string) {
+  const auth = await authorize('roles.administrar');
+  if (!auth.authorized) return { error: auth.error };
+
+  const { error } = await (auth.supabase.from('roles_permisos') as any)
+    .delete()
+    .eq('rol_nombre', rolNombre)
+    .eq('permiso_codigo', permisoCodigo);
 
   if (error) return { error: error.message };
   return { success: true };

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Plus, X, Clock, UserCheck, ArrowRight, Trash2,
-  CalendarDays, Repeat, ChevronLeft, ChevronRight,
+  CalendarDays, Repeat, ChevronLeft, ChevronRight, Search,
 } from 'lucide-react';
 import {
   programarApertura, toggleApertura, eliminarApertura,
@@ -54,15 +54,22 @@ export function TurnosBranchClient({
   turnosActivos,
   sucursal,
   todasSucursales,
+  aperturaHoyActiva,
+  totalActivos,
+  totalActivas,
 }: {
   aperturas: AperturaSimple[];
   turnosActivos: TurnoSimple[];
   sucursal: SucursalSimple;
   todasSucursales: SucursalSimple[];
+  aperturaHoyActiva: boolean;
+  totalActivos: number;
+  totalActivas: number;
 }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('programaciones');
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   // Create modal
   const [showProgramar, setShowProgramar] = useState(false);
@@ -70,7 +77,7 @@ export function TurnosBranchClient({
   const [fechaFin, setFechaFin] = useState('');
   const [horaInicio, setHoraInicio] = useState('14:00');
   const [horaFin, setHoraFin] = useState('22:00');
-  const [recurrencia, setRecurrencia] = useState<string>(''); // '' | 'semanal' | 'mensual' | 'anual'
+  const [recurrencia, setRecurrencia] = useState<string>('');
 
   // Reassign modal
   const [showReasignar, setShowReasignar] = useState<{ turnoId: string } | null>(null);
@@ -95,12 +102,9 @@ export function TurnosBranchClient({
   useEffect(() => {
     if (showReasignar) {
       obtenerSucursalesConApertura().then(sucsConApertura => {
-        console.log('[reasignar] sucursales con apertura:', sucsConApertura);
         const filtradas = sucsConApertura.filter(s => s.id !== sucursal.id);
-        console.log('[reasignar] filtradas (sin actual):', filtradas.map(s => s.nombre));
         setOtrasSucursales(filtradas);
-      }).catch(err => {
-        console.error('[reasignar] error:', err);
+      }).catch(() => {
         setOtrasSucursales([]);
       });
       setSucursalDestino('');
@@ -296,11 +300,15 @@ export function TurnosBranchClient({
   }
 
   const ahora = new Date();
-  const aperturaHoyActiva = aperturasIniciales.some(
-    a => a.activa && a.fecha === ahora.toISOString().split('T')[0] &&
-      a.hora_inicio <= ahora.toTimeString().slice(0, 5) &&
-      a.hora_fin >= ahora.toTimeString().slice(0, 5)
-  );
+
+  const aperturasFiltradas = useMemo(() => {
+    if (!search.trim()) return aperturasIniciales;
+    const q = search.toLowerCase();
+    return aperturasIniciales.filter(a => {
+      const fecha = new Date(a.fecha + 'T00:00:00').toLocaleDateString('es-MX');
+      return fecha.includes(q) || a.hora_inicio.includes(q) || a.hora_fin.includes(q) || (a.recurrencia?.includes(q));
+    });
+  }, [aperturasIniciales, search]);
 
   // Calendar grid helpers
   const anio = mesActual.getFullYear();
@@ -315,23 +323,40 @@ export function TurnosBranchClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-text-primary">Turnos</h1>
-          <p className="text-sm text-muted mt-1">
+          <p className="text-sm text-muted mt-1 flex items-center gap-2">
             {sucursal.nombre}
             {aperturaHoyActiva && (
-              <span className="ml-2 inline-flex items-center gap-1 text-xs text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1 text-xs text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                 Aceptando turnos ahora
               </span>
             )}
           </p>
         </div>
-        <Button onClick={() => setShowProgramar(true)} variant="primary">
+        <Button onClick={() => setShowProgramar(true)}>
           <Plus className="w-4 h-4" />
           Programar Turno
         </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-card border border-border/60 rounded-2xl p-4">
+          <p className="text-2xl font-bold text-text-primary">{aperturasIniciales.length}</p>
+          <p className="text-xs text-muted mt-1">Programaciones</p>
+        </div>
+        <div className="bg-card border border-border/60 rounded-2xl p-4">
+          <p className="text-2xl font-bold text-blue-500">{totalActivos}</p>
+          <p className="text-xs text-muted mt-1">Empleados activos</p>
+        </div>
+        <div className="bg-card border border-border/60 rounded-2xl p-4">
+          <p className="text-2xl font-bold text-amber-500">{totalActivas}</p>
+          <p className="text-xs text-muted mt-1">Activas</p>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -341,7 +366,7 @@ export function TurnosBranchClient({
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'programaciones'
             ? 'bg-card text-text-primary shadow-sm'
             : 'text-muted hover:text-text-primary'
-            }`}
+          }`}
         >
           <Clock className="w-4 h-4" />
           Programaciones
@@ -351,7 +376,7 @@ export function TurnosBranchClient({
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'calendario'
             ? 'bg-card text-text-primary shadow-sm'
             : 'text-muted hover:text-text-primary'
-            }`}
+          }`}
         >
           <CalendarDays className="w-4 h-4" />
           Calendario
@@ -361,17 +386,29 @@ export function TurnosBranchClient({
       {activeTab === 'programaciones' && (
         <>
           {/* Programaciones */}
-          <div className="bg-card rounded-2xl border-2 border-border-default p-6">
-            <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-accent" />
-              Programaciones de Turno
-            </h2>
+          <div className="bg-card rounded-2xl border-2 border-border/60 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                <Clock className="w-4 h-4 text-accent" />
+                Programaciones de Turno
+              </h2>
+              <div className="relative max-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Buscar..."
+                  className="w-full bg-bg-base border border-border/60 rounded-lg pl-8 pr-2 py-1.5 text-xs text-body placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
+                />
+              </div>
+            </div>
 
-            {aperturasIniciales.length === 0 ? (
+            {aperturasFiltradas.length === 0 ? (
               <EmptyState
                 icon={Clock}
-                title="Sin turnos programados"
-                description="Programa un turno para que los meseros puedan registrar su entrada"
+                title={search ? 'Sin resultados' : 'Sin turnos programados'}
+                description={search ? 'Intenta con otro término' : 'Programa un turno para que los meseros puedan registrar su entrada'}
               />
             ) : (
               <div className="overflow-x-auto">
@@ -379,54 +416,56 @@ export function TurnosBranchClient({
                   <thead>
                     <tr className="text-left text-muted border-b border-border/60">
                       <th className="pb-3 font-semibold">Fecha</th>
-                      <th className="pb-3 font-semibold">Inicio</th>
-                      <th className="pb-3 font-semibold">Fin</th>
-                      <th className="pb-3 font-semibold">Repite</th>
+                      <th className="pb-3 font-semibold">Horario</th>
+                      <th className="pb-3 font-semibold hidden sm:table-cell">Repite</th>
                       <th className="pb-3 font-semibold">Estado</th>
                       <th className="pb-3 font-semibold text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {aperturasIniciales.map(a => (
+                    {aperturasFiltradas.map(a => (
                       <tr key={a.id} className="border-b border-border/40 hover:bg-bg-base/50 transition-colors">
-                        <td className="py-3 font-medium text-text-primary">
+                        <td className="py-3 font-medium text-text-primary whitespace-nowrap">
                           {new Date(a.fecha + 'T00:00:00').toLocaleDateString('es-MX', {
                             weekday: 'short', day: 'numeric', month: 'short',
                           })}
                         </td>
-                        <td className="py-3 text-text-primary">{a.hora_inicio.slice(0, 5)}</td>
-                        <td className="py-3 text-text-primary">{a.hora_fin.slice(0, 5)}</td>
-                        <td className="py-3">
+                        <td className="py-3 text-text-primary whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Clock className="w-3 h-3 text-muted" />
+                            {a.hora_inicio.slice(0, 5)} – {a.hora_fin.slice(0, 5)}
+                          </span>
+                        </td>
+                        <td className="py-3 hidden sm:table-cell">
                           {a.recurrencia ? (
                             <Badge variant="info">
                               <Repeat className="w-3 h-3 inline mr-1" />
                               {a.recurrencia === 'semanal' ? 'Semanal' : a.recurrencia === 'mensual' ? 'Mensual' : 'Anual'}
-                              {a.recurrencia_fin && ` hasta ${new Date(a.recurrencia_fin + 'T00:00:00').toLocaleDateString('es-MX')}`}
                             </Badge>
                           ) : (
                             <span className="text-muted">—</span>
                           )}
                         </td>
                         <td className="py-3">
-                          <Badge variant={a.activa ? 'success' : 'danger'}>
+                          <Badge variant={a.activa ? 'success' : 'danger'} className="whitespace-nowrap">
                             {a.activa ? 'Activa' : 'Desactivada'}
                           </Badge>
                         </td>
                         <td className="py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleToggle(a.id, !a.activa)}
                               disabled={isSubmitting === a.id}
-                              className="text-xs text-accent hover:text-accent-dark bg-accent/10 hover:bg-accent/20 px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+                              className="text-xs text-accent hover:text-accent-dark bg-accent/10 hover:bg-accent/20 px-2.5 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
                             >
                               {a.activa ? 'Desactivar' : 'Activar'}
                             </button>
                             <button
                               onClick={() => handleEliminar(a.id)}
                               disabled={isSubmitting === a.id}
-                              className="text-xs text-red-500 hover:text-red-600 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+                              className="p-1.5 rounded-lg text-muted hover:text-red-600 hover:bg-red-50/50 transition-colors disabled:opacity-50"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -439,24 +478,24 @@ export function TurnosBranchClient({
           </div>
 
           {/* Meseros en turno */}
-          <div className="bg-card rounded-2xl border-2 border-border-default p-6">
+          <div className="bg-card rounded-2xl border-2 border-border/60 p-5">
             <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
               <UserCheck className="w-4 h-4 text-accent" />
-              Meseros en Turno
+              Empleados en Turno
             </h2>
 
             {turnosActivos.length === 0 ? (
               <EmptyState
                 icon={UserCheck}
-                title="Sin meseros activos"
-                description="No hay meseros registrados en turno actualmente"
+                title="Sin empleados activos"
+                description="No hay empleados registrados en turno actualmente"
               />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-muted border-b border-border/60">
-                      <th className="pb-3 font-semibold">Mesero</th>
+                      <th className="pb-3 font-semibold">Nombre</th>
                       <th className="pb-3 font-semibold">Desde</th>
                       <th className="pb-3 font-semibold">Duración</th>
                       <th className="pb-3 font-semibold text-right">Acciones</th>
@@ -472,22 +511,22 @@ export function TurnosBranchClient({
                       return (
                         <tr key={t.id} className="border-b border-border/40 hover:bg-bg-base/50 transition-colors">
                           <td className="py-3 font-medium text-text-primary">{t.usuario_nombre}</td>
-                          <td className="py-3 text-text-primary">
+                          <td className="py-3 text-text-primary whitespace-nowrap">
                             {inicio.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
                           </td>
                           <td className="py-3">
-                            <Badge variant="info">
+                            <Badge variant={horas >= 8 ? 'warning' : 'info'}>
                               {horas > 0 ? `${horas}h ` : ''}{mins}min
                             </Badge>
                           </td>
                           <td className="py-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => {
                                   setShowReasignar({ turnoId: t.id });
                                   setSucursalDestino('');
                                 }}
-                                className="text-xs text-amber-500 hover:text-amber-600 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg font-medium transition-colors"
+                                className="text-xs text-amber-500 hover:text-amber-600 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap"
                               >
                                 <ArrowRight className="w-3 h-3 inline mr-1" />
                                 Reasignar
@@ -495,9 +534,9 @@ export function TurnosBranchClient({
                               <button
                                 onClick={() => handleCerrarTurno(t.id)}
                                 disabled={isSubmitting === t.id}
-                                className="text-xs text-red-500 hover:text-red-600 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+                                className="text-xs text-red-500 hover:text-red-600 bg-red-500/10 hover:bg-red-500/20 px-2.5 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
                               >
-                                Cerrar turno
+                                Cerrar
                               </button>
                             </div>
                           </td>
@@ -513,18 +552,18 @@ export function TurnosBranchClient({
       )}
 
       {activeTab === 'calendario' && (
-        <div className="bg-card rounded-2xl border-2 border-border-default p-6">
+        <div className="bg-card rounded-2xl border-2 border-border/60 p-5">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
               <CalendarDays className="w-4 h-4 text-accent" />
               Calendario de Turnos
             </h2>
-            <div className="flex items-center gap-2 text-sm">
-              <div className="flex items-center gap-1">
+            <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded bg-blue-500/30 inline-block" />
                 <span className="text-muted">Normal</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded bg-orange-500/30 inline-block" />
                 <span className="text-muted">Modificado</span>
               </div>
@@ -556,7 +595,6 @@ export function TurnosBranchClient({
             <div className="text-center py-12 text-muted">Cargando...</div>
           ) : (
             <div>
-              {/* Day headers */}
               <div className="grid grid-cols-7 mb-2">
                 {diasSemana.map(d => (
                   <div key={d} className="text-center text-xs font-semibold text-muted py-2">
@@ -565,14 +603,11 @@ export function TurnosBranchClient({
                 ))}
               </div>
 
-              {/* Calendar grid */}
               <div className="grid grid-cols-7 gap-1">
-                {/* Empty cells before first day */}
                 {Array.from({ length: primerDiaSemana }).map((_, i) => (
                   <div key={`empty-${i}`} className="aspect-square" />
                 ))}
 
-                {/* Day cells */}
                 {Array.from({ length: diasEnMes }).map((_, i) => {
                   const dia = i + 1;
                   const fechaStr = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
@@ -604,7 +639,7 @@ export function TurnosBranchClient({
                       onClick={() => clickable && info && abrirEditarDia(info)}
                       disabled={!clickable}
                       className={`aspect-square rounded-xl flex flex-col items-center justify-center text-sm transition-all ${bgClass} ${textClass} ${clickable ? 'cursor-pointer hover:scale-105' : 'cursor-default'
-                        } ${esHoy ? 'ring-2 ring-accent' : ''}`}
+                      } ${esHoy ? 'ring-2 ring-accent' : ''}`}
                     >
                       <span className="font-semibold">{dia}</span>
                       {info?.excepcion && (
@@ -638,17 +673,23 @@ export function TurnosBranchClient({
           <div className="bg-card rounded-3xl border-2 border-border/60 w-full max-w-md shadow-2xl">
             <div className="bg-gradient-to-r from-accent/10 to-amber-400/10 px-6 pt-6 pb-5">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-text-primary">Programar Turno</h2>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-accent" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-text-primary">Programar Turno</h2>
+                    <p className="text-sm text-muted">{sucursal.nombre}</p>
+                  </div>
+                </div>
                 <button onClick={() => setShowProgramar(false)} className="text-muted hover:text-body p-1.5 rounded-lg hover:bg-bg-base">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <p className="text-sm text-muted mt-1">{sucursal.nombre}</p>
             </div>
             <form onSubmit={handleProgramar} className="p-6 space-y-4">
-              {/* Tipo */}
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-text-secondary">Tipo de turno</label>
+                <label className="block text-xs text-muted mb-1">Tipo de turno</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { value: '', label: 'Única', desc: 'Un solo día' },
@@ -663,7 +704,7 @@ export function TurnosBranchClient({
                       className={`p-3 rounded-xl border-2 text-sm font-medium transition-colors text-left ${recurrencia === opt.value
                         ? 'border-accent bg-accent/10 text-accent'
                         : 'border-border-default text-text-primary hover:border-accent/50'
-                        }`}
+                      }`}
                     >
                       <span className="block font-semibold">{opt.label}</span>
                       <span className="block text-xs text-muted mt-0.5">{opt.desc}</span>
@@ -672,9 +713,8 @@ export function TurnosBranchClient({
                 </div>
               </div>
 
-              {/* Fecha inicio */}
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-text-secondary">
+                <label className="block text-xs text-muted mb-1">
                   {recurrencia ? 'Fecha inicio' : 'Fecha'}
                 </label>
                 <input
@@ -682,17 +722,17 @@ export function TurnosBranchClient({
                     setFechaInicio(e.target.value);
                     if (recurrencia) handleRecurrenciaChange(recurrencia);
                   }}
-                  className="w-full rounded-xl border border-border-default/60 px-4 py-3 text-sm text-text-primary bg-bg-input focus:outline-none focus:ring-2 focus:ring-accent/30"
+                  className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
                   required
                 />
               </div>
 
               {recurrencia && (
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-text-secondary">Fecha fin</label>
+                  <label className="block text-xs text-muted mb-1">Fecha fin</label>
                   <input
                     type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)}
-                    className="w-full rounded-xl border border-border-default/60 px-4 py-3 text-sm text-text-primary bg-bg-input focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
                     required
                   />
                 </div>
@@ -713,34 +753,30 @@ export function TurnosBranchClient({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-text-secondary">Hora inicio</label>
+                  <label className="block text-xs text-muted mb-1">Hora inicio</label>
                   <input
                     type="time" value={horaInicio} onChange={e => setHoraInicio(e.target.value)}
-                    className="w-full rounded-xl border border-border-default/60 px-4 py-3 text-sm text-text-primary bg-bg-input focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
                     required
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-text-secondary">Hora fin</label>
+                  <label className="block text-xs text-muted mb-1">Hora fin</label>
                   <input
                     type="time" value={horaFin} onChange={e => setHoraFin(e.target.value)}
-                    className="w-full rounded-xl border border-border-default/60 px-4 py-3 text-sm text-text-primary bg-bg-input focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
                     required
                   />
                 </div>
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowProgramar(false)}
-                  className="flex-1 rounded-xl border-2 border-border-default px-4 py-3 text-sm font-medium text-text-primary hover:bg-bg-base transition-colors"
-                >
+                <Button variant="secondary" className="flex-1" onClick={() => setShowProgramar(false)}>
                   Cancelar
-                </button>
-                <button type="submit" disabled={isSubmitting === 'programar'}
-                  className="flex-1 bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-50"
-                >
-                  {isSubmitting === 'programar' ? '...' : 'Programar'}
-                </button>
+                </Button>
+                <Button className="flex-1" type="submit" loading={isSubmitting === 'programar'}>
+                  Programar
+                </Button>
               </div>
             </form>
           </div>
@@ -754,58 +790,62 @@ export function TurnosBranchClient({
             <div className={`px-6 pt-6 pb-5 ${showEditarDia.excepcion
               ? 'bg-gradient-to-r from-orange-500/10 to-amber-400/10'
               : 'bg-gradient-to-r from-blue-500/10 to-accent/10'
-              }`}>
+            }`}>
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-text-primary">Modificar Día</h2>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-accent/15">
+                    <CalendarDays className="w-5 h-5 text-accent" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-text-primary">Modificar Día</h2>
+                    <p className="text-sm text-muted">
+                      {showEditarDia.excepcion ? 'Horario modificado' : 'Horario normal'}
+                    </p>
+                  </div>
+                </div>
                 <button onClick={() => setShowEditarDia(null)} className="text-muted hover:text-body p-1.5 rounded-lg hover:bg-bg-base">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <p className="text-sm text-muted mt-1">
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm font-medium text-text-primary">
                 {new Date(showEditarDia.fecha + 'T00:00:00').toLocaleDateString('es-MX', {
                   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
                 })}
               </p>
-            </div>
-            <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-text-secondary">Hora inicio</label>
+                  <label className="block text-xs text-muted mb-1">Hora inicio</label>
                   <input
                     type="time" value={editHoraInicio} onChange={e => setEditHoraInicio(e.target.value)}
-                    className="w-full rounded-xl border border-border-default/60 px-4 py-3 text-sm text-text-primary bg-bg-input focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-text-secondary">Hora fin</label>
+                  <label className="block text-xs text-muted mb-1">Hora fin</label>
                   <input
                     type="time" value={editHoraFin} onChange={e => setEditHoraFin(e.target.value)}
-                    className="w-full rounded-xl border border-border-default/60 px-4 py-3 text-sm text-text-primary bg-bg-input focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
                   />
                 </div>
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowEditarDia(null)}
-                  className="flex-1 rounded-xl border-2 border-border-default px-4 py-3 text-sm font-medium text-text-primary hover:bg-bg-base transition-colors"
-                >
+                <Button variant="secondary" className="flex-1" onClick={() => setShowEditarDia(null)}>
                   Cancelar
-                </button>
-                <button
-                  onClick={handleGuardarExcepcion}
-                  disabled={isSubmitting === 'editar'}
-                  className="flex-1 bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-50"
-                >
-                  {isSubmitting === 'editar' ? '...' : 'Guardar'}
-                </button>
+                </Button>
+                <Button className="flex-1" loading={isSubmitting === 'editar'} onClick={handleGuardarExcepcion}>
+                  Guardar
+                </Button>
               </div>
 
               {showEditarDia.excepcion && (
-                <div className="pt-2 border-t border-border-default/60">
+                <div className="pt-2 border-t border-border/40">
                   <button
                     onClick={() => handleRestaurarExcepcion(showEditarDia.excepcion!.id)}
                     disabled={isSubmitting === 'restaurar'}
-                    className="w-full text-center text-sm text-orange-500 hover:text-orange-600 font-medium transition-colors disabled:opacity-50"
+                    className="w-full text-center text-sm text-orange-500 hover:text-orange-600 font-medium transition-colors disabled:opacity-50 py-2"
                   >
                     Restaurar horario original
                   </button>
@@ -822,18 +862,23 @@ export function TurnosBranchClient({
           <div className="bg-card rounded-3xl border-2 border-border/60 w-full max-w-md shadow-2xl">
             <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 px-6 pt-6 pb-5">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-text-primary">Reasignar Mesero</h2>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/15 flex items-center justify-center">
+                    <ArrowRight className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-text-primary">Reasignar Mesero</h2>
+                    <p className="text-sm text-muted">El turno se cerrará y abrirá en la destino</p>
+                  </div>
+                </div>
                 <button onClick={() => setShowReasignar(null)} className="text-muted hover:text-body p-1.5 rounded-lg hover:bg-bg-base">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <p className="text-sm text-muted mt-1">
-                El turno se cerrará en esta sucursal y se abrirá uno nuevo en la destino
-              </p>
             </div>
             <div className="p-6 space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-text-secondary">Sucursal destino</label>
+                <label className="block text-xs text-muted mb-1">Sucursal destino</label>
                 <div className="space-y-2">
                   {otrasSucursales.map(s => (
                     <button
@@ -842,7 +887,7 @@ export function TurnosBranchClient({
                       className={`w-full text-left p-3 rounded-xl border-2 transition-colors ${sucursalDestino === s.id
                         ? 'border-accent bg-accent/10'
                         : 'border-border-default hover:border-accent/50'
-                        }`}
+                      }`}
                     >
                       <p className="text-sm font-medium text-text-primary">{s.nombre}</p>
                       <p className="text-xs text-muted">{s.slug}</p>
@@ -854,16 +899,17 @@ export function TurnosBranchClient({
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowReasignar(null)}
-                  className="flex-1 rounded-xl border-2 border-border-default px-4 py-3 text-sm font-medium text-text-primary hover:bg-bg-base transition-colors"
-                >
+                <Button variant="secondary" className="flex-1" onClick={() => setShowReasignar(null)}>
                   Cancelar
-                </button>
-                <button onClick={handleReasignar} disabled={!sucursalDestino || isSubmitting === 'reasignar'}
-                  className="flex-1 bg-amber-500 text-white hover:bg-amber-600 rounded-xl px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-50"
+                </Button>
+                <Button
+                  className="flex-1 bg-amber-500 text-white hover:bg-amber-600"
+                  disabled={!sucursalDestino}
+                  loading={isSubmitting === 'reasignar'}
+                  onClick={handleReasignar}
                 >
-                  {isSubmitting === 'reasignar' ? '...' : 'Reasignar'}
-                </button>
+                  Reasignar
+                </Button>
               </div>
             </div>
           </div>

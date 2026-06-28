@@ -588,7 +588,6 @@ export type Database = {
         | "cancelado";
       rol_usuario:
         | "super_admin"
-        | "admin"
         | "caja"
         | "mesero"
         | "barra"
@@ -738,7 +737,6 @@ export const Constants = {
       ],
       rol_usuario: [
         "super_admin",
-        "admin",
         "caja",
         "mesero",
         "barra",

@@ -29,7 +29,8 @@ export default async function SucursalLayout({
   if (!perfil || !perfil.activo) redirect('/login');
 
   const userSucursales = await fetchSucursalesByUserId(user.id);
-  const tieneAcceso = perfil.rol === 'super_admin' || perfil.rol === 'admin' ||
+  const tieneAcceso = perfil.rol === 'super_admin' || perfil.rol === 'administrador' ||
+    perfil.rol === 'gerente_sucursal' ||
     userSucursales.some(s => s.id === sucursal.id);
 
   if (!tieneAcceso) {

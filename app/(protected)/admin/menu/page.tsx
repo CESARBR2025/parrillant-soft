@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { Store, UtensilsCrossed } from 'lucide-react';
+import { MenuClient } from './MenuClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +27,15 @@ export default async function GlobalMenuPage() {
     .order('nombre');
   const sucursales: { id: string; slug: string; nombre: string; activa: boolean }[] = sucursalesRaw.data ?? [];
 
+  const categoriasCount: Record<string, number> = {};
+  for (const s of sucursales) {
+    const { count } = await supabase
+      .from('categorias')
+      .select('*', { count: 'exact', head: true })
+      .eq('sucursal_id', s.id);
+    categoriasCount[s.id] = count ?? 0;
+  }
+
   if (sucursales.length === 0) {
     return (
       <div className="space-y-6">
@@ -42,36 +50,6 @@ export default async function GlobalMenuPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">Menú</h1>
-        <p className="text-sm text-muted mt-1">
-          Administra el menú por sucursal
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        {sucursales.map(s => (
-          <Link
-            key={s.id}
-            href={`/${s.slug}/admin/menu`}
-            className="bg-card rounded-2xl border-2 border-border-default p-6 hover:border-accent/50 transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-                <Store className="w-5 h-5 text-accent" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-text-primary truncate">{s.nombre}</p>
-                <p className="text-xs text-muted">
-                  <UtensilsCrossed className="w-3 h-3 inline mr-1" />
-                  Editar menú
-                </p>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </div>
+    <MenuClient initialSucursales={sucursales} categoriasCount={categoriasCount} />
   );
 }
