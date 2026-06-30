@@ -76,7 +76,7 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
 
     const supabase = createClientSupabaseClient();
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('ordenes')
       .select(`
         id,
@@ -99,6 +99,10 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
       .eq('sucursal_id', sucursal.id)
       .in('estado', ['pendiente', 'en_preparacion', 'listo'])
       .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error(`[kitchen ${tipo}] Error en fetchOrders:`, error);
+    }
 
     if (!data) {
       setOrders([]);
@@ -136,11 +140,23 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
       })
       .filter((o) => o.items.length > 0);
 
+    console.log(`[kitchen ${tipo}] fetchOrders:`, {
+      rawCount: typedData.length,
+      transformedIds: transformed.map(o => o.id),
+      prevIds: [...prevOrderIdsRef.current],
+      isFirstLoad: isFirstLoadRef.current,
+      hasOnNewOrder: !!onNewOrderRef.current,
+    });
+
     if (!isFirstLoadRef.current && onNewOrderRef.current) {
       const hasNew = transformed.some((o) => !prevOrderIdsRef.current.has(o.id));
+      console.log(`[kitchen ${tipo}] hasNew:`, hasNew);
       if (hasNew) {
+        console.log(`[kitchen ${tipo}] Llamando onNewOrder (play)`);
         onNewOrderRef.current();
       }
+    } else {
+      console.log(`[kitchen ${tipo}] Saltando onNewOrder: firstLoad=${isFirstLoadRef.current}, onNewOrder=${!!onNewOrderRef.current}`);
     }
     prevOrderIdsRef.current = new Set(transformed.map((o) => o.id));
     isFirstLoadRef.current = false;
@@ -175,6 +191,11 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
           filter: `sucursal_id=eq.${sucursal?.id}`,
         }, () => { if (mounted) fetchOrders(); })
         .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'detalles_orden',
+        }, () => { if (mounted) fetchOrders(); })
+        .on('postgres_changes', {
           event: 'UPDATE',
           schema: 'public',
           table: 'detalles_orden',
@@ -191,18 +212,13 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
         if (mounted) setNow(Date.now());
       }, 1000);
 
-      const pollInterval = setInterval(() => {
-        if (mounted) fetchOrders();
-      }, 5000);
-
-      return { channel, supabase, timerInterval, pollInterval };
+      return { channel, supabase, timerInterval };
     }
 
     const cleanup = {
       channel: null as ReturnType<ReturnType<typeof createClientSupabaseClient>['channel']> | null,
       supabase: null as ReturnType<typeof createClientSupabaseClient> | null,
       timerInterval: null as ReturnType<typeof setInterval> | null,
-      pollInterval: null as ReturnType<typeof setInterval> | null,
     };
 
     init().then((c) => {
@@ -210,7 +226,6 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
       cleanup.channel = c.channel;
       cleanup.supabase = c.supabase;
       cleanup.timerInterval = c.timerInterval;
-      cleanup.pollInterval = c.pollInterval;
     });
 
     return () => {
@@ -220,9 +235,6 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
       }
       if (cleanup.timerInterval) {
         clearInterval(cleanup.timerInterval);
-      }
-      if (cleanup.pollInterval) {
-        clearInterval(cleanup.pollInterval);
       }
     };
   }, [fetchOrders, tipo, sucursal?.id]);
