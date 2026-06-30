@@ -75,6 +75,7 @@ export const NAV_ITEMS: Record<KnownRol, NavItem[]> = {
   caja: [
     { label: 'Caja', href: '/caja', icon: CreditCard },
     { label: 'Historial', href: '/caja/historial', icon: ClipboardList },
+    { label: 'Corte', href: '/caja/corte', icon: CalendarClock },
   ],
   mesero: [
     { label: 'Dashboard', href: '/mesero', icon: LayoutDashboard },
@@ -151,6 +152,7 @@ export const NAV_SECTIONS: Record<KnownRol, NavSection[]> = {
       items: [
         { label: 'Caja', href: '/caja', icon: CreditCard },
         { label: 'Historial', href: '/caja/historial', icon: ClipboardList },
+        { label: 'Corte', href: '/caja/corte', icon: CalendarClock },
       ],
     },
   ],

@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
-  Plus, X, Clock, UserCheck, ArrowRight, Trash2,
+  Plus, X, Clock, UserCheck, ArrowRight, Trash2, Pencil,
   CalendarDays, Repeat, ChevronLeft, ChevronRight, Search,
 } from 'lucide-react';
 import {
-  programarApertura, toggleApertura, eliminarApertura,
+  programarApertura, modificarApertura, toggleApertura, eliminarApertura,
   cerrarTurno, reasignarTurno, crearExcepcion,
   eliminarExcepcion, obtenerCalendarioMensual,
   obtenerSucursalesConApertura,
@@ -78,6 +78,9 @@ export function TurnosBranchClient({
   const [horaInicio, setHoraInicio] = useState('14:00');
   const [horaFin, setHoraFin] = useState('22:00');
   const [recurrencia, setRecurrencia] = useState<string>('');
+
+  // Edit modal
+  const [showEditarProgramacion, setShowEditarProgramacion] = useState<AperturaSimple | null>(null);
 
   // Reassign modal
   const [showReasignar, setShowReasignar] = useState<{ turnoId: string } | null>(null);
@@ -208,6 +211,30 @@ export function TurnosBranchClient({
       toast.error(result.error);
     } else {
       toast.success('Programación eliminada');
+      router.refresh();
+    }
+  }
+
+  function handleEditar(a: AperturaSimple) {
+    setHoraInicio(a.hora_inicio.slice(0, 5));
+    setHoraFin(a.hora_fin.slice(0, 5));
+    setShowEditarProgramacion(a);
+  }
+
+  async function handleGuardarEditar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!showEditarProgramacion) return;
+    setIsSubmitting('editar-programacion');
+    const result = await modificarApertura(showEditarProgramacion.id, {
+      hora_inicio: horaInicio,
+      hora_fin: horaFin,
+    });
+    setIsSubmitting(null);
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      setShowEditarProgramacion(null);
+      toast.success('Horario actualizado');
       router.refresh();
     }
   }
@@ -453,6 +480,14 @@ export function TurnosBranchClient({
                         </td>
                         <td className="py-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleEditar(a)}
+                              disabled={isSubmitting === a.id}
+                              className="p-1.5 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-50"
+                              title="Editar horario"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               onClick={() => handleToggle(a.id, !a.activa)}
                               disabled={isSubmitting === a.id}
@@ -776,6 +811,67 @@ export function TurnosBranchClient({
                 </Button>
                 <Button className="flex-1" type="submit" loading={isSubmitting === 'programar'}>
                   Programar
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar programación */}
+      {showEditarProgramacion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-card rounded-3xl border-2 border-border/60 w-full max-w-md shadow-2xl">
+            <div className="bg-gradient-to-r from-blue-500/10 to-accent/10 px-6 pt-6 pb-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-accent/15 flex items-center justify-center">
+                    <Pencil className="w-5 h-5 text-accent" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-text-primary">Editar Horario</h2>
+                    <p className="text-sm text-muted">
+                      {new Date(showEditarProgramacion.fecha + 'T00:00:00').toLocaleDateString('es-MX', {
+                        weekday: 'long', day: 'numeric', month: 'long',
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setShowEditarProgramacion(null)} className="text-muted hover:text-body p-1.5 rounded-lg hover:bg-bg-base">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <form onSubmit={handleGuardarEditar} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs text-muted mb-1">Hora inicio</label>
+                  <input
+                    type="time"
+                    value={horaInicio}
+                    onChange={e => setHoraInicio(e.target.value)}
+                    className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs text-muted mb-1">Hora fin</label>
+                  <input
+                    type="time"
+                    value={horaFin}
+                    onChange={e => setHoraFin(e.target.value)}
+                    className="w-full bg-bg-base border border-border/60 rounded-xl px-3 py-2 text-sm text-body focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button variant="secondary" className="flex-1" onClick={() => setShowEditarProgramacion(null)}>
+                  Cancelar
+                </Button>
+                <Button className="flex-1" type="submit" loading={isSubmitting === 'editar-programacion'}>
+                  Guardar
                 </Button>
               </div>
             </form>

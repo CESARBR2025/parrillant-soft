@@ -41,6 +41,7 @@
 | `/{slug}/admin/mesas` | Server + `AdminMesasClient` | CRUD de mesas + generación por rango |
 | `/{slug}/admin/usuarios` | Server + `SucursalUsuariosClient` | Asignar/remover usuarios de la sucursal |
 | `/{slug}/admin/turnos` | Server + `TurnosBranchClient` | Calendario de aperturas de turno + excepciones |
+| `/{slug}/admin/corte` | Server + `CorteDiario` | Corte de caja diario: dashboard, tabla, exportar Excel |
 
 ### Mesero
 
@@ -72,6 +73,7 @@
 | `/{slug}/caja` | Client | Dashboard de caja: órdenes por cobrar |
 | `/{slug}/caja/ordenes/[ordenId]/cobrar` | Client | Pantalla de cobro: items, descuento, cambio, ticket térmico |
 | `/{slug}/caja/historial` | Client | Historial de ventas con filtros y totales |
+| `/{slug}/caja/corte` | Server + `CorteDiario` | Corte de caja diario (solo lectura, sin generar) |
 
 ### API
 
@@ -83,7 +85,7 @@
 
 ## Base de Datos
 
-### Tablas (15)
+### Tablas (16)
 
 | Tabla | Columnas clave | Propósito |
 |-------|---------------|-----------|
@@ -94,7 +96,7 @@
 | `permisos` | `codigo`, `descripcion` | Catálogo de permisos |
 | `roles_permisos` | `rol_nombre`, `permiso_codigo` | Asignación permiso → rol |
 | `mesas` | `numero`, `zona`, `capacidad`, `estado`, `sucursal_id` | Mesas del restaurante |
-| `ordenes` | `estado`, `mesa_id`, `mesero_id`, `sucursal_id`, `total`, `metodo_pago` | Órdenes (cabecera) |
+| `ordenes` | `estado`, `mesa_id`, `mesero_id`, `sucursal_id`, `total`, `metodo_pago`, `descuento` | Órdenes (cabecera) |
 | `detalles_orden` | `producto_id`, `cantidad`, `precio_unitario`, `tipo`, `listo`, `servido`, `ronda` | Items de la orden |
 | `categorias` | `nombre`, `tipo`, `orden`, `sucursal_id` | Categorías del menú |
 | `productos_menu` | `nombre`, `precio`, `tipo`, `categoria_id`, `sucursal_id`, `imagen_url` | Productos del menú |
@@ -102,6 +104,7 @@
 | `aperturas_excepciones` | `apertura_id`, `fecha`, `hora_inicio`, `hora_fin` | Excepciones a aperturas recurrentes |
 | `registro_turnos_personal` | `usuario_id`, `sucursal_id`, `apertura_id`, `activo`, `inicio`, `fin` | Registro de turno del personal |
 | `turnos` | (alias de registro_turnos_personal) | Legacy |
+| `cortes_caja` | `sucursal_id`, `fecha`, `total_efectivo`, `total_tarjeta`, `detalle` (JSONB) | Corte de caja diario (snapshot congelado de ventas del día) |
 
 ### Enums
 
@@ -137,6 +140,8 @@
 | `turnos.cerrar_cualquiera` | super_admin, administrador, gerente_sucursal |
 | `ordenes.cocina` | cocina |
 | `ordenes.barra` | barra |
+| `sucursal.cortes.ver` | caja, gerente_sucursal, administrador, super_admin |
+| `sucursal.cortes.generar` | gerente_sucursal, administrador, super_admin |
 
 ### RLS Policies
 
@@ -155,10 +160,11 @@ Todas las tablas con RLS usan `public.tiene_permiso('codigo')`:
 | `registro_turnos_personal` | ALL admin (`sucursal.turnos.administrar`), SELECT/INSERT/UPDATE propio (`turnos.registrar`) |
 | `ordenes` | SELECT/INSERT/UPDATE por rol según permiso específico (`turnos.registrar`, `ordenes.cocina`, `ordenes.barra`, `sucursal.ordenes.administrar`) |
 | `detalles_orden` | SELECT/INSERT/UPDATE por rol según permiso específico |
+| `cortes_caja` | SELECT (`sucursal.cortes.ver`), INSERT (`sucursal.cortes.generar`) |
 
 ---
 
-## Server Actions (18 archivos)
+## Server Actions (19 archivos)
 
 | Archivo | Acciones | Permiso Requerido |
 |---------|----------|-------------------|
@@ -180,6 +186,7 @@ Todas las tablas con RLS usan `public.tiene_permiso('codigo')`:
 | `marcarEntregado.ts` | marcarEntregado | Mesero (propia orden) |
 | `abrirMesa.ts` | abrirMesa | Requiere turno activo |
 | `crearSuperAdmin.ts` | crearSuperAdmin | Utilidad |
+| `cortes.ts` | obtenerCorte, generarCorte, exportarCorteExcel | `sucursal.cortes.ver` / `sucursal.cortes.generar` |
 
 ---
 
@@ -214,7 +221,7 @@ Todas las tablas con RLS usan `public.tiene_permiso('codigo')`:
 | `MapaHeader` | mesas/ | Header del mapa (nombre sucursal) |
 | `StationQueue` | kitchen/ | Cola de órdenes para cocina/barra |
 | `StationTicket` | kitchen/ | Ticket de orden individual con timer y urgencia |
-| `ItemCheckbox` | kitchen/ | Checkbox para marcar item individual como listo |
+| `ItemCheckbox` | kitchen/ | Checkbox para marcar item individual como listo. Solo llama `onMarked()` si la BD se actualizó. |
 | `OrderTimer` | kitchen/ | Timer de tiempo transcurrido |
 | `AlertBell` | kitchen/ | Alerta "EXCEDE TIEMPO" |
 | `OrderBill` | checkout/ | Cuenta detallada: subtotal, descuento, total |
@@ -224,20 +231,14 @@ Todas las tablas con RLS usan `public.tiene_permiso('codigo')`:
 | `ChangeCalculator` | checkout/ | Cálculo de cambio |
 | `OrderCard` | orders/ | Card de orden con items, badges, botones de acción |
 | `WaiterNotification` | — | Escucha Realtime: alerta sonora cuando orden pasa a "listo" |
+| `CorteDiario` | corte/ | Dashboard de corte de caja diario (vista previa vs generado) |
+| `ResumenCard` | corte/ | Cards de totales por método de pago |
+| `OrdenesTable` | corte/ | Tabla detallada de órdenes del día |
+| `ExportButton` | corte/ | Botón de exportar a Excel |
 
 ### UI Base
 
 `Button`, `Card`, `Modal`, `BackButton`, `LoadingOverlay`, `Badge`, `EmptyState`, `Spinner`
-
----
-
-## Middleware
-
-- Protege todas las rutas excepto `/login`, `/auth/callback`, assets estáticos y `/api/*`
-- Extrae `sucursal_slug` del path y valida que exista
-- Verifica que el usuario tenga acceso a la sucursal
-- Redirige por rol: `/admin*` → super_admin/administrador (global) o gerente_sucursal (branch), `/caja*` → caja/gerente_sucursal/super_admin, etc.
-- Para meseros: verifica turno activo, redirige a registrar-turno si no tiene
 
 ---
 
@@ -253,6 +254,25 @@ Todas las tablas con RLS usan `public.tiene_permiso('codigo')`:
 6. Selecciona sucursal → confirma registro de turno → `registrarTurno()` → redirige a `/{slug}/{ruta_inicio}` según rol
 
 ---
+
+## Middleware
+
+- Protege todas las rutas excepto `/login`, `/auth/callback`, assets estáticos y `/api/*`
+- Extrae `sucursal_slug` del path y valida que exista
+- Verifica que el usuario tenga acceso a la sucursal
+- Redirige por rol: `/admin*` → super_admin/administrador/gerente_sucursal, `/caja*` → caja/gerente_sucursal/super_admin, etc.
+- Para meseros: verifica turno activo, redirige a registrar-turno si no tiene
+
+---
+
+## Implementado recientemente
+
+- [x] **Per-order button states en StationQueue** — Reemplazado `useTransition` (global `isPending`) por `pendingId: number | null`. Cada botón "Preparando" solo se deshabilita a sí mismo.
+- [x] **Per-button disable en ActiveOrderView** — `disabled={isSubmitting !== null}` → `disabled={isSubmitting !== null && isSubmitting !== key}`. Los botones "Servir alimentos/bebidas" y "Solicitar cuenta" ya no se deshabilitan todos al mismo tiempo.
+- [x] **Eliminado polling de 5s en ActiveOrderView** — Las suscripciones Realtime a `ordenes` y `detalles_orden` bastan.
+- [x] **ItemCheckbox no actualiza UI si falla BD** — `onMarked()` solo se llama cuando `res.error` es falsy.
+- [x] **try/catch en server actions** — `StationQueue.handleMarkReady`, `ItemCheckbox.handleClick`, `ActiveOrderView.handleServir` y `handleSolicitarCuenta` ahora envuelven el server action en try/catch/finally para evitar que el estado `pendingId`/`isSubmitting` quede atorado ante errores de red.
+- [x] **Módulo Corte de Caja Diario** — Tabla `cortes_caja` con snapshot JSONB, columna `descuento` en `ordenes`, server actions (`generarCorte`, `obtenerCorte`, `exportarCorteExcel`), componentes (`CorteDiario`, `ResumenCard`, `OrdenesTable`, `ExportButton`), rutas `/{slug}/admin/corte` y `/{slug}/caja/corte`, exportación a Excel con 2 hojas (Resumen + Detalle).
 
 ## Pendiente
 

@@ -6,7 +6,7 @@ import { RUTA_INICIO_POR_ROL } from "./types/roles";
 const RUTAS_PUBLICAS = ["/login", "/auth/callback"];
 
 const RUTAS_PROTEGIDAS: Array<{ patron: RegExp; rolesPermitidos: Rol[] }> = [
-  { patron: /^\/admin(?:\/|$)/, rolesPermitidos: ["super_admin", "administrador"] },
+  { patron: /^\/admin(?:\/|$)/, rolesPermitidos: ["super_admin", "administrador", "gerente_sucursal"] },
   { patron: /^\/caja(?:\/|$)/, rolesPermitidos: ["super_admin", "gerente_sucursal", "caja"] },
   { patron: /^\/mesero(?:\/|$)/, rolesPermitidos: ["super_admin", "gerente_sucursal", "mesero"] },
   { patron: /^\/cocina(?:\/|$)/, rolesPermitidos: ["super_admin", "gerente_sucursal", "cocina"] },
