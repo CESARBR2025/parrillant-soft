@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
+import { useSucursal } from '@/components/providers/SucursalProvider'
 import { Calendar, Search } from 'lucide-react'
 
 interface OrdenCerrada {
@@ -31,6 +32,7 @@ const METODO_LABEL: Record<string, string> = {
 
 export default function HistorialPage() {
   const supabase = createClientSupabaseClient()
+  const sucursal = useSucursal()
   const [ordenes, setOrdenes] = useState<OrdenCerrada[]>([])
   const [loading, setLoading] = useState(true)
   const [fechaInicio, setFechaInicio] = useState(() => {
@@ -50,6 +52,7 @@ export default function HistorialPage() {
     let cancelled = false
 
     async function load() {
+      if (!sucursal?.id) return
       setLoading(true)
 
       let query = supabase
@@ -59,6 +62,7 @@ export default function HistorialPage() {
         mesas (numero, zona),
         perfiles!ordenes_mesero_id_fkey (nombre, apellido)`,
         )
+        .eq('sucursal_id', sucursal.id)
         .eq('estado', 'cerrado')
         .gte('updated_at', `${fechaInicio}T00:00:00`)
         .lte('updated_at', `${fechaFin}T23:59:59`)

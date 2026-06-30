@@ -3,12 +3,11 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { useNavigate } from '@/components/providers/NavigationProvider'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft, Printer, Clock, Receipt, Tag, Percent, CheckCircle2 } from 'lucide-react'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
 import { useSucursal } from '@/components/providers/SucursalProvider'
 import { OrderBill } from '@/components/checkout/OrderBill'
 import { PaymentPanel, type PaymentMethod } from '@/components/checkout/PaymentPanel'
-import { DiscountInput } from '@/components/checkout/DiscountInput'
 import { ReceiptPreview } from '@/components/checkout/ReceiptPreview'
 
 interface Detalle {
@@ -36,6 +35,8 @@ interface BillItem {
   notas: string | null
 }
 
+type DiscountType = 'none' | 'percentage' | 'fixed'
+
 export default function CobrarPage() {
   const { ordenId } = useParams<{ ordenId: string }>()
   const router = useNavigate()
@@ -47,6 +48,7 @@ export default function CobrarPage() {
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
   const [discount, setDiscount] = useState(0)
+  const [ticketGenerado, setTicketGenerado] = useState(false)
   const [receipt, setReceipt] = useState<{
     metodoPago: string
     recibido: number
@@ -55,18 +57,38 @@ export default function CobrarPage() {
   } | null>(null)
   const [error, setError] = useState('')
 
+  // Discount UI state
+  const [discountType, setDiscountType] = useState<DiscountType>('none')
+  const [discountValue, setDiscountValue] = useState('')
+
   useEffect(() => {
     async function load() {
-      const ordenRaw = await supabase
-        .from('ordenes')
-        .select(
-          `id, estado, created_at, mesa_id,
-          mesas (numero, zona),
-          detalles_orden (id, cantidad, precio_unitario, notas, productos_menu (nombre))`,
-        )
-        .eq('id', Number(ordenId))
-        .single();
-      const data = ordenRaw.data as OrdenData | null;
+      if (!sucursal?.id) return
+
+      const [ordenRaw, subsRaw] = await Promise.all([
+        supabase
+          .from('ordenes')
+          .select(
+            `id, estado, created_at, mesa_id, ticket_generado_en,
+            mesas (numero, zona),
+            detalles_orden (id, cantidad, precio_unitario, notas, productos_menu (nombre))`,
+          )
+          .eq('id', Number(ordenId))
+          .eq('sucursal_id', sucursal.id)
+          .single(),
+        supabase
+          .from('ordenes')
+          .select(
+            `id, estado, created_at, mesa_id,
+            detalles_orden (id, cantidad, precio_unitario, notas, productos_menu (nombre))`,
+          )
+          .eq('orden_padre_id', Number(ordenId))
+          .eq('sucursal_id', sucursal.id)
+          .in('estado', ['entregado', 'cuenta_solicitada'])
+          .order('created_at', { ascending: true }),
+      ]);
+
+      const data = ordenRaw.data as OrdenData & { ticket_generado_en: string | null } | null;
 
       if (!data) {
         router.push(`/${sucursal?.slug}/caja`);
@@ -77,25 +99,15 @@ export default function CobrarPage() {
         return;
       }
       setOrden(data);
+      setTicketGenerado(!!data.ticket_generado_en);
 
-      // Fetch sub-orders
-      const subsRaw = await supabase
-        .from('ordenes')
-        .select(
-          `id, estado, created_at, mesa_id,
-          detalles_orden (id, cantidad, precio_unitario, notas, productos_menu (nombre))`,
-        )
-        .eq('orden_padre_id', Number(ordenId))
-        .in('estado', ['entregado', 'cuenta_solicitada'])
-        .order('created_at', { ascending: true });
       const subs = (subsRaw.data ?? []) as unknown as OrdenData[];
-
       setSubOrdenes(subs);
       setLoading(false);
     }
 
     load();
-  }, [ordenId, router, supabase]);
+  }, [ordenId]);
 
   const todasOrdenes = useMemo(() => {
     const result = [orden!];
@@ -121,52 +133,26 @@ export default function CobrarPage() {
 
   const totalConDescuento = Math.max(0, subtotal - discount);
 
-  const handlePay = useCallback(
-    async (method: PaymentMethod, recibido: number) => {
-      if (!orden) return;
+  function handleDiscountTypeChange(type: DiscountType) {
+    setDiscountType(type)
+    setDiscountValue('')
+    setDiscount(0)
+  }
 
-      setPaying(true);
-      setError('');
+  function handleDiscountValueChange(raw: string) {
+    setDiscountValue(raw)
+    const num = parseFloat(raw) || 0
+    if (discountType === 'percentage') {
+      const maxPct = Math.min(num, 100)
+      setDiscount((subtotal * maxPct) / 100)
+    } else {
+      setDiscount(Math.min(num, subtotal))
+    }
+  }
 
-      try {
-        const res = await fetch(`/api/ordenes/${orden.id}/estado`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            estado: 'cerrado',
-            metodo_pago: method,
-            pagado_con: method === 'efectivo' ? recibido : totalConDescuento,
-          }),
-        });
+  const handleGenerarTicket = useCallback(async () => {
+    if (!orden) return
 
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error ?? 'Error al procesar el pago');
-        }
-
-        if (discount > 0) {
-          await (supabase
-            .from('ordenes') as any)
-            .update({ notas: `Descuento aplicado: $${discount.toFixed(2)}` })
-            .eq('id', orden.id)
-        }
-
-        setReceipt({
-          metodoPago: method,
-          recibido: method === 'efectivo' ? recibido : totalConDescuento,
-          cambio: method === 'efectivo' ? recibido - totalConDescuento : 0,
-          total: totalConDescuento,
-        });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al procesar el pago');
-      } finally {
-        setPaying(false);
-      }
-    },
-    [orden, totalConDescuento, discount, supabase],
-  );
-
-  const handlePrint = useCallback(() => {
     const printWindow = window.open(
       '',
       'ticket',
@@ -228,7 +214,7 @@ export default function CobrarPage() {
 </head>
 <body>
   <img src="${baseUrl}/parrillalogo.png" alt="Parrillant" class="logo" onerror="this.style.display='none'" />
-  <p class="center sub">Cuenta</p>
+  <p class="center sub">Ticket de Consumo</p>
   <p class="center mesa">Mesa ${orden?.mesas?.numero ?? ''}${orden?.mesas?.zona ? ` - ${orden.mesas.zona}` : ''}</p>
   <hr class="sep">
   <table>
@@ -255,12 +241,86 @@ export default function CobrarPage() {
 </body>
 </html>`)
     printWindow.document.close()
+
+    await fetch(`/api/ordenes/${orden.id}/ticket`, { method: 'PATCH' })
+    setTicketGenerado(true)
   }, [billItems, subtotal, totalConDescuento, discount, orden])
+
+  const handlePay = useCallback(
+    async (method: PaymentMethod, recibido: number) => {
+      if (!orden) return;
+
+      setPaying(true);
+      setError('');
+
+      try {
+        const res = await fetch(`/api/ordenes/${orden.id}/estado`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            estado: 'cerrado',
+            metodo_pago: method,
+            pagado_con: method === 'efectivo' ? recibido : totalConDescuento,
+            descuento: discount > 0 ? discount : 0,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error ?? 'Error al procesar el pago');
+        }
+
+        setReceipt({
+          metodoPago: method,
+          recibido: method === 'efectivo' ? recibido : totalConDescuento,
+          cambio: method === 'efectivo' ? recibido - totalConDescuento : 0,
+          total: totalConDescuento,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al procesar el pago');
+      } finally {
+        setPaying(false);
+      }
+    },
+    [orden, totalConDescuento, discount, supabase],
+  )
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      <div className="max-w-5xl mx-auto space-y-6 animate-pulse">
+        <div className="bg-card rounded-2xl border-2 border-border/60 p-5">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-bg-base" />
+            <div className="space-y-2 flex-1">
+              <div className="h-5 w-32 bg-bg-base rounded" />
+              <div className="h-3 w-48 bg-bg-base rounded" />
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-3">
+            <div className="bg-card rounded-2xl border-2 border-border/60 p-6 space-y-4">
+              <div className="h-4 w-20 bg-bg-base rounded" />
+              {[1,2,3,4].map(i => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-bg-base" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-4 w-3/4 bg-bg-base rounded" />
+                    <div className="h-3 w-1/2 bg-bg-base rounded" />
+                  </div>
+                  <div className="h-4 w-16 bg-bg-base rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="lg:col-span-2">
+            <div className="bg-card rounded-2xl border-2 border-border/60 p-6 space-y-4">
+              <div className="h-8 w-28 bg-bg-base rounded" />
+              <div className="h-4 w-full bg-bg-base rounded" />
+              <div className="h-12 w-full bg-bg-base rounded-lg" />
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -288,65 +348,256 @@ export default function CobrarPage() {
     )
   }
 
-  return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Back button */}
-      <button
-        onClick={() => router.push(`/${sucursal?.slug}/caja`)}
-        className="flex items-center gap-2 text-sm text-muted hover:text-body transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Volver a Caja
-      </button>
+  const tiempoTranscurrido = () => {
+    if (!orden.created_at) return ''
+    const diff = Date.now() - new Date(orden.created_at).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return '< 1 min'
+    return `${mins} min`
+  }
 
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-text-primary">
-          Mesa {orden.mesas?.numero}
-        </h1>
-        {orden.mesas?.zona && (
-          <p className="text-sm text-muted mt-1">{orden.mesas.zona}</p>
-        )}
-        {subOrdenes.length > 0 && (
-          <p className="text-xs text-muted mt-1">
-            Incluye {subOrdenes.length} pedido{subOrdenes.length > 1 ? 's' : ''} adicional{subOrdenes.length > 1 ? 'es' : ''}
-          </p>
-        )}
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      {/* Header with mesa info */}
+      <div className="bg-card rounded-2xl border-2 border-border/60 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push(`/${sucursal?.slug}/caja`)}
+            className="w-10 h-10 rounded-xl bg-bg-base border border-border/60 flex items-center justify-center text-muted hover:text-body hover:border-border transition-all shrink-0"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold text-text-primary">
+                Mesa {orden.mesas?.numero}
+              </h1>
+              {orden.mesas?.zona && (
+                <span className="text-xs font-medium bg-accent/10 text-accent px-2.5 py-0.5 rounded-full">
+                  {orden.mesas.zona}
+                </span>
+              )}
+              {ticketGenerado && (
+                <span className="text-xs font-medium bg-emerald-500/10 text-emerald-500 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Ticket generado
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 mt-1">
+              <span className="flex items-center gap-1.5 text-xs text-muted">
+                <Clock className="w-3.5 h-3.5" />
+                {tiempoTranscurrido()}
+              </span>
+              {subOrdenes.length > 0 && (
+                <span className="text-xs text-muted">
+                  + {subOrdenes.length} pedido{subOrdenes.length > 1 ? 's' : ''} adicional{subOrdenes.length > 1 ? 'es' : ''}
+                </span>
+              )}
+              <span className="flex items-center gap-1.5 text-xs text-muted">
+                <Receipt className="w-3.5 h-3.5" />
+                {billItems.length} ítem{billItems.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Error */}
       {error && (
-        <div className="bg-danger/10 border border-danger/30 rounded-xl px-4 py-3 text-sm text-danger">
+        <div className="bg-danger/10 border border-danger/30 rounded-xl px-5 py-3.5 text-sm text-danger flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-danger shrink-0" />
           {error}
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-5">
+      {/* Step indicator */}
+      <div className="flex items-center gap-4">
+        <div className={`flex items-center gap-2 ${ticketGenerado ? 'text-emerald-500' : 'text-accent'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+            ticketGenerado
+              ? 'bg-emerald-500/20 text-emerald-500'
+              : 'bg-accent/15 text-accent'
+          }`}>
+            {ticketGenerado ? <CheckCircle2 className="w-4 h-4" /> : 1}
+          </div>
+          <span className={`text-sm font-semibold ${ticketGenerado ? 'text-emerald-500' : 'text-text-primary'}`}>
+            Generar Ticket
+          </span>
+        </div>
+        <div className="flex-1 h-px bg-border/60" />
+        <div className={`flex items-center gap-2 ${ticketGenerado ? 'text-text-primary' : 'text-muted'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+            ticketGenerado
+              ? 'bg-accent/15 text-accent'
+              : 'bg-bg-base text-muted border border-border/60'
+          }`}>
+            2
+          </div>
+          <span className={`text-sm font-semibold ${ticketGenerado ? 'text-text-primary' : 'text-muted'}`}>
+            Cobro
+          </span>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="grid gap-6 lg:grid-cols-5 items-start">
         {/* Bill - takes 3/5 */}
         <div className="lg:col-span-3 space-y-4">
           <OrderBill items={billItems} discount={discount} />
 
-          <div className="flex gap-2">
-            <button
-              onClick={handlePrint}
-              className="flex items-center justify-center gap-2 flex-1 bg-bg-base border border-border/60 text-body rounded-xl px-4 py-2.5 text-sm font-medium hover:bg-card transition-colors"
-            >
-              <Printer className="w-4 h-4" />
-              Imprimir Cuenta
-            </button>
-            <DiscountInput subtotal={subtotal} onChange={setDiscount} />
-          </div>
+          {/* Discount controls (only before ticket is generated) */}
+          {!ticketGenerado && (
+            <div className="bg-card rounded-2xl border-2 border-border/60 p-5 space-y-4">
+              <h3 className="text-sm font-semibold text-text-primary">Descuento</h3>
+
+              <div className="flex rounded-xl border border-border/60 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => handleDiscountTypeChange('none')}
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
+                    discountType === 'none'
+                      ? 'bg-accent text-white'
+                      : 'bg-bg-base text-muted hover:text-body'
+                  }`}
+                >
+                  Sin descuento
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDiscountTypeChange('percentage')}
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                    discountType === 'percentage'
+                      ? 'bg-accent text-white'
+                      : 'bg-bg-base text-muted hover:text-body'
+                  }`}
+                >
+                  <Percent className="w-3.5 h-3.5" />
+                  %
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDiscountTypeChange('fixed')}
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${
+                    discountType === 'fixed'
+                      ? 'bg-accent text-white'
+                      : 'bg-bg-base text-muted hover:text-body'
+                  }`}
+                >
+                  <Tag className="w-3.5 h-3.5" />
+                  Monto
+                </button>
+              </div>
+
+              {discountType !== 'none' && (
+                <div className="relative">
+                  {discountType === 'fixed' && (
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
+                  )}
+                  <input
+                    type="number"
+                    min="0"
+                    max={discountType === 'percentage' ? 100 : subtotal}
+                    step={discountType === 'percentage' ? '1' : 'any'}
+                    value={discountValue}
+                    onChange={(e) => handleDiscountValueChange(e.target.value)}
+                    placeholder={discountType === 'percentage' ? '0%' : '$0'}
+                    className={`w-full bg-bg-base border border-border/60 rounded-xl py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors ${
+                      discountType === 'fixed' ? 'pl-8 pr-3' : 'px-3'
+                    }`}
+                  />
+                  {discountType === 'percentage' && discountValue && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-sm">%</span>
+                  )}
+                </div>
+              )}
+
+              {discount > 0 && (
+                <div className="flex justify-between text-sm bg-success/10 rounded-xl px-4 py-2.5">
+                  <span className="text-success font-medium">Descuento aplicado</span>
+                  <span className="text-success font-bold">-${discount.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Payment panel - takes 2/5 */}
-        <div className="lg:col-span-2">
-          <div className="lg:sticky lg:top-6">
-            <PaymentPanel total={totalConDescuento} onPay={handlePay} loading={paying} />
-          </div>
+        {/* Right panel */}
+        <div className="lg:col-span-2 space-y-4 lg:sticky lg:top-6">
+          {!ticketGenerado ? (
+            <div className="bg-card rounded-2xl border-2 border-border/60 p-6 space-y-5">
+              <div className="text-center space-y-2">
+                <Receipt className="w-10 h-10 text-muted mx-auto" />
+                <h3 className="font-semibold text-text-primary">Paso 1: Generar Ticket de Consumo</h3>
+                <p className="text-xs text-muted">
+                  Configura el descuento (si aplica) y genera el ticket para entregar al mesero.
+                </p>
+              </div>
+
+              {/* Totals preview */}
+              <div className="bg-bg-base rounded-xl px-4 py-3 space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Subtotal</span>
+                  <span className="text-body font-medium">${subtotal.toFixed(2)}</span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-success">Descuento</span>
+                    <span className="text-success">-${discount.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-base font-bold pt-1.5 border-t border-border/40">
+                  <span className="text-text-primary">Total</span>
+                  <span className="text-accent">${totalConDescuento.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleGenerarTicket}
+                className="w-full bg-accent text-white font-bold text-lg py-4 rounded-xl hover:bg-accent-dark transition-all shadow-accent flex items-center justify-center gap-2"
+              >
+                <Printer className="w-5 h-5" />
+                Generar Ticket de Consumo
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="bg-emerald-900/20 border border-emerald-800/30 rounded-2xl p-5 space-y-3">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-text-primary text-sm">Ticket generado</p>
+                    <p className="text-xs text-muted">Entregar al mesero para la mesa</p>
+                  </div>
+                  <button
+                    onClick={() => setTicketGenerado(false)}
+                    className="text-xs font-medium text-accent hover:text-accent/80 underline underline-offset-2 shrink-0"
+                  >
+                    Editar ticket
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleGenerarTicket}
+                    className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg px-3 py-2 transition-colors"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    Reimprimir ticket
+                  </button>
+                </div>
+              </div>
+
+              <PaymentPanel
+                total={totalConDescuento}
+                onPay={handlePay}
+                loading={paying}
+              />
+            </>
+          )}
         </div>
       </div>
-
-
     </div>
   )
 }

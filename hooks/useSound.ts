@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from "react";
 
-export function useSound(soundFile: string = '/sounds/didi_pedido.mp3') {
+export function useSound(soundFile: string = "/sounds/didi_pedido.mp3") {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     const audio = new Audio(soundFile);
-    audio.preload = 'auto';
+    audio.preload = "auto";
     audioRef.current = audio;
 
     const unlock = () => {
@@ -19,13 +19,14 @@ export function useSound(soundFile: string = '/sounds/didi_pedido.mp3') {
       }).catch(() => {});
     };
 
-    document.addEventListener('click', unlock, { once: true });
-    document.addEventListener('touchstart', unlock, { once: true });
+    unlock();
+    document.addEventListener("click", unlock, { once: true });
+    document.addEventListener("touchstart", unlock, { once: true });
 
     return () => {
-      document.removeEventListener('click', unlock);
-      document.removeEventListener('touchstart', unlock);
-      audio.src = '';
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("touchstart", unlock);
+      audio.src = "";
       audioRef.current = null;
     };
   }, [soundFile]);

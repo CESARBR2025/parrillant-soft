@@ -12,14 +12,14 @@ export default function CocinaPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <CookingPot className="w-7 h-7 text-accent" />
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">Cocina</h1>
-          <p className="text-sm text-muted">
-            {queueOrders.length} orden{queueOrders.length !== 1 ? 'es' : ''} pendiente{queueOrders.length !== 1 ? 's' : ''}
-          </p>
+          <CookingPot className="w-7 h-7 text-accent" />
+          <div>
+            <h1 className="text-2xl font-bold text-text-primary">Cocina</h1>
+            <p className="text-sm text-muted">
+              {queueOrders.length} orden{queueOrders.length !== 1 ? 'es' : ''} pendiente{queueOrders.length !== 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
-      </div>
 
       <StationQueue
         queue={queueOrders}

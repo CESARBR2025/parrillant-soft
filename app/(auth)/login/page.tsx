@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Mail, Lock, LogIn, Loader2, AlertCircle, Store, Clock, CheckCircle2 } from 'lucide-react';
@@ -18,18 +18,10 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
 
     const [sucursales, setSucursales] = useState<Sucursal[]>([]);
-    const [selectedSucursal, setSelectedSucursal] = useState<string | null>(null);
     const [userRol, setUserRol] = useState<Rol | null>(null);
     const [step, setStep] = useState<'login' | 'sucursal'>('login');
     const [registrandoTurno, setRegistrandoTurno] = useState<string | null>(null);
     const [confirmarSucursal, setConfirmarSucursal] = useState<Sucursal | null>(null);
-
-    useEffect(() => {
-        if (step === 'sucursal' && userRol && userRol !== 'mesero' && sucursales.length === 1) {
-            const ruta = RUTA_INICIO_POR_ROL[userRol as KnownRol] ?? '/mesero';
-            router.push(`/${sucursales[0].slug}${ruta}`);
-        }
-    }, [step, sucursales, userRol, router]);
 
     async function handleLogin(e: React.FormEvent) {
         e.preventDefault();
@@ -53,6 +45,7 @@ export default function LoginPage() {
             .eq('id', data.user.id)
             .single();
         const perfil = perfilRaw as { rol: string; activo: boolean } | null;
+        console.log(perfil)
 
         if (!perfil?.activo) {
             await supabase.auth.signOut();
@@ -62,34 +55,30 @@ export default function LoginPage() {
         }
 
         const rol = perfil.rol as Rol;
+        console.log(rol)
 
         if (rol === 'super_admin' || rol === 'administrador') {
             router.push('/admin');
             return;
         }
 
-        if (rol === 'gerente_sucursal') {
-            const userSucursalesRaw = await supabase
-                .from('usuario_sucursales')
-                .select('sucursales!inner(slug)');
-            const userSucursales: { sucursales: { slug: string } }[] = userSucursalesRaw.data ?? [];
-            const slug = userSucursales[0]?.sucursales?.slug;
-            if (slug) {
-                router.push(`/${slug}/admin`);
-                return;
-            }
-            await supabase.auth.signOut();
-            setError('No tienes sucursales asignadas. Contacta al administrador.');
-            setLoading(false);
+        // Verificar si ya tiene un turno activo (todos los roles)
+        const { slug: turnoActivoSlug } = await obtenerTurnoActivo(data.session?.access_token);
+        if (turnoActivoSlug) {
+            const ruta = RUTA_INICIO_POR_ROL[rol as KnownRol] ?? '/mesero';
+            router.push(`/${turnoActivoSlug}${ruta}`);
             return;
         }
 
         const userSucursalesRaw = await supabase
             .from('usuario_sucursales')
-            .select('sucursales!inner(id, slug, nombre)');
+            .select('sucursales!inner(id, slug, nombre)')
+            .eq('usuario_id', data.user.id);
         const userSucursales: { sucursales: { id: string; slug: string; nombre: string } }[] = userSucursalesRaw.data ?? [];
 
-        const sucs = userSucursales.map(s => s.sucursales);
+        const sucs = userSucursales
+            .map(s => s.sucursales)
+            .filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i);
 
         if (sucs.length === 0) {
             await supabase.auth.signOut();
@@ -98,19 +87,12 @@ export default function LoginPage() {
             return;
         }
 
-        if (rol === 'mesero') {
-            // Si ya tiene un turno activo, ir directo al dashboard
-            const { slug } = await obtenerTurnoActivo(data.session?.access_token);
-            if (slug) {
-                router.push(`/${slug}/mesero/mapa`);
-                return;
-            }
+        let sucsFinal: Sucursal[] = sucs;
 
+        if (rol === 'mesero') {
             const hoy = new Date().toISOString().split('T')[0];
             const horaActual = new Date().toTimeString().slice(0, 5);
             const sucsIds = sucs.map(s => s.id);
-
-            console.log('[login] debug:', { sucs, hoy, horaActual, sucsIds });
 
             // Aperturas de día único (fecha = hoy)
             const unicasRaw = await supabase
@@ -122,7 +104,6 @@ export default function LoginPage() {
                 .gte('hora_fin', horaActual)
                 .eq('activa', true);
             const unicas: { sucursal_id: string }[] = unicasRaw.data ?? [];
-            console.log('[login] unicas:', unicas, 'error:', unicasRaw.error);
 
             // Aperturas recurrentes activas hoy (fecha <= hoy, recurrencia_fin >= hoy)
             const recurrentesRaw = await (supabase as any)
@@ -134,7 +115,6 @@ export default function LoginPage() {
                 .eq('activa', true)
                 .not('recurrencia', 'is', null);
             const recurrentes: { id: string; sucursal_id: string; hora_inicio: string; hora_fin: string }[] = recurrentesRaw.data ?? [];
-            console.log('[login] recurrentes:', recurrentes, 'error:', recurrentesRaw.error);
 
             const sucursalesConApertura = new Set(unicas.map(a => a.sucursal_id));
 
@@ -154,23 +134,17 @@ export default function LoginPage() {
                 }
             }
 
-            console.log('[login] sucursalesConApertura:', [...sucursalesConApertura]);
+            sucsFinal = sucs.filter(s => sucursalesConApertura.has(s.id));
 
-            const sucsFiltradas = sucs.filter(s => sucursalesConApertura.has(s.id));
-
-            console.log('[login] sucsFiltradas:', sucsFiltradas);
-
-            if (sucsFiltradas.length === 0) {
+            if (sucsFinal.length === 0) {
                 await supabase.auth.signOut();
                 setError('No hay turnos abiertos en tus sucursales en este momento. Contacta al administrador.');
                 setLoading(false);
                 return;
             }
-
-            setSucursales(sucsFiltradas);
-        } else {
-            setSucursales(sucs);
         }
+
+        setSucursales(sucsFinal);
 
         setUserRol(rol);
         setStep('sucursal');
@@ -188,14 +162,9 @@ export default function LoginPage() {
             setConfirmarSucursal(null);
         } else {
             setConfirmarSucursal(null);
-            router.push(`/${confirmarSucursal.slug}/mesero/mapa`);
+            const ruta = RUTA_INICIO_POR_ROL[userRol as KnownRol] ?? '/mesero';
+            router.push(`/${confirmarSucursal.slug}${ruta}`);
         }
-    }
-
-    function handleSelectSucursal(slug: string) {
-        setSelectedSucursal(slug);
-        const ruta = RUTA_INICIO_POR_ROL[userRol! as KnownRol] ?? '/mesero';
-        router.push(`/${slug}${ruta}`);
     }
 
     if (confirmarSucursal) {
@@ -297,23 +266,13 @@ export default function LoginPage() {
                                                 <p className="text-xs text-muted">{s.slug}</p>
                                             </div>
                                         </div>
-                                        {userRol === 'mesero' ? (
-                                            <button
-                                                onClick={() => setConfirmarSucursal(s)}
-                                                className="w-full bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
-                                            >
-                                                <Clock className="w-4 h-4" />
-                                                Registrar turno
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleSelectSucursal(s.slug)}
-                                                disabled={selectedSucursal === s.slug}
-                                                className="w-full bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-50"
-                                            >
-                                                Entrar
-                                            </button>
-                                        )}
+                                        <button
+                                            onClick={() => setConfirmarSucursal(s)}
+                                            className="w-full bg-accent text-white hover:bg-accent-dark rounded-xl px-4 py-3 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
+                                        >
+                                            <Clock className="w-4 h-4" />
+                                            Registrar turno
+                                        </button>
                                     </div>
                                 ))}
                             </div>

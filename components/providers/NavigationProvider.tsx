@@ -14,6 +14,7 @@ export const NavigationContext = createContext<NavigationContextType>({
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
   const [isNavigating, setIsNavigating] = useState(false);
+  const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
   const prevPathname = useRef(pathname);
 
@@ -25,7 +26,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   const startNavigation = useCallback(() => {
-    setIsNavigating(true);
+    if (navTimerRef.current) clearTimeout(navTimerRef.current);
+    navTimerRef.current = setTimeout(() => setIsNavigating(true), 300);
   }, []);
 
   return (

@@ -6,7 +6,7 @@ import { RUTA_INICIO_POR_ROL } from "./types/roles";
 const RUTAS_PUBLICAS = ["/login", "/auth/callback"];
 
 const RUTAS_PROTEGIDAS: Array<{ patron: RegExp; rolesPermitidos: Rol[] }> = [
-  { patron: /^\/admin(?:\/|$)/, rolesPermitidos: ["super_admin", "administrador"] },
+  { patron: /^\/admin(?:\/|$)/, rolesPermitidos: ["super_admin", "administrador", "gerente_sucursal"] },
   { patron: /^\/caja(?:\/|$)/, rolesPermitidos: ["super_admin", "gerente_sucursal", "caja"] },
   { patron: /^\/mesero(?:\/|$)/, rolesPermitidos: ["super_admin", "gerente_sucursal", "mesero"] },
   { patron: /^\/cocina(?:\/|$)/, rolesPermitidos: ["super_admin", "gerente_sucursal", "cocina"] },
@@ -107,10 +107,12 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    const rolesConTurno: Rol[] = ['mesero', 'caja', 'cocina', 'barra', 'gerente_sucursal'];
+
     if (
-      perfil.rol === 'mesero' &&
-      rutaProtegida?.rolesPermitidos.includes('mesero') &&
-      !internalPath.startsWith('/mesero/registrar-turno')
+      rolesConTurno.includes(perfil.rol as Rol) &&
+      rutaProtegida?.rolesPermitidos.includes(perfil.rol as Rol) &&
+      (perfil.rol !== 'mesero' || !internalPath.startsWith('/mesero/registrar-turno'))
     ) {
       const turnoRaw = await (supabase as any)
         .from('registro_turnos_personal')
@@ -126,7 +128,10 @@ export async function middleware(request: NextRequest) {
         response.cookies.set('turno_id', turno.id, { path: '/', httpOnly: true });
       } else {
         response.cookies.delete('turno_id');
-        return NextResponse.redirect(new URL(`/${sucursalSlug}/mesero/registrar-turno`, request.url));
+        const destino = perfil.rol === 'mesero'
+          ? `/${sucursalSlug}/mesero/registrar-turno`
+          : '/login';
+        return NextResponse.redirect(new URL(destino, request.url));
       }
     }
 
@@ -196,6 +201,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?|css|js)$|api/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?|css|js|mp3)$|api/).*)",
   ],
 };

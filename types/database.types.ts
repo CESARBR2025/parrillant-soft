@@ -43,6 +43,21 @@ export interface Turno {
   updated_at: string;
 }
 
+export interface CorteCaja {
+  id: string;
+  sucursal_id: string;
+  fecha: string;
+  total_efectivo: number;
+  total_tarjeta: number;
+  total_transferencia: number;
+  total_descuentos: number;
+  total_general: number;
+  total_ordenes: number;
+  generado_por: string;
+  created_at: string;
+  detalle: Json;
+}
+
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
@@ -88,6 +103,53 @@ export type Database = {
             columns: ["sucursal_id"];
             isOneToOne: false;
             referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cortes_caja: {
+        Row: CorteCaja;
+        Insert: {
+          id?: string;
+          sucursal_id: string;
+          fecha?: string;
+          total_efectivo?: number;
+          total_tarjeta?: number;
+          total_transferencia?: number;
+          total_descuentos?: number;
+          total_general?: number;
+          total_ordenes?: number;
+          generado_por: string;
+          created_at?: string;
+          detalle?: Json;
+        };
+        Update: {
+          id?: string;
+          sucursal_id?: string;
+          fecha?: string;
+          total_efectivo?: number;
+          total_tarjeta?: number;
+          total_transferencia?: number;
+          total_descuentos?: number;
+          total_general?: number;
+          total_ordenes?: number;
+          generado_por?: string;
+          created_at?: string;
+          detalle?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cortes_caja_sucursal_id_fkey";
+            columns: ["sucursal_id"];
+            isOneToOne: false;
+            referencedRelation: "sucursales";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cortes_caja_generado_por_fkey";
+            columns: ["generado_por"];
+            isOneToOne: false;
+            referencedRelation: "perfiles";
             referencedColumns: ["id"];
           },
         ];
@@ -140,6 +202,7 @@ export type Database = {
           cerrado_por_id: string | null;
           comensales: number | null;
           created_at: string;
+          descuento: number;
           estado: Database["public"]["Enums"]["estado_orden"];
           id: number;
           mesa_id: number;
@@ -149,6 +212,7 @@ export type Database = {
           orden_padre_id: number | null;
           pagado_con: number | null;
           sucursal_id: string;
+          ticket_generado_en: string | null;
           total: number | null;
           updated_at: string;
         };
@@ -158,6 +222,7 @@ export type Database = {
           cerrado_por_id?: string | null;
           comensales?: number | null;
           created_at?: string;
+          descuento?: number;
           estado?: Database["public"]["Enums"]["estado_orden"];
           id?: number;
           mesa_id: number;
@@ -167,6 +232,7 @@ export type Database = {
           orden_padre_id?: number | null;
           pagado_con?: number | null;
           sucursal_id: string;
+          ticket_generado_en?: string | null;
           total?: number | null;
           updated_at?: string;
         };
@@ -176,6 +242,7 @@ export type Database = {
           cerrado_por_id?: string | null;
           comensales?: number | null;
           created_at?: string;
+          descuento?: number;
           estado?: Database["public"]["Enums"]["estado_orden"];
           id?: number;
           mesa_id?: number;
@@ -185,6 +252,7 @@ export type Database = {
           orden_padre_id?: number | null;
           pagado_con?: number | null;
           sucursal_id?: string;
+          ticket_generado_en?: string | null;
           total?: number | null;
           updated_at?: string;
         };

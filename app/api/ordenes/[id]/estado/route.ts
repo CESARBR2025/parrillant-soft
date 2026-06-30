@@ -45,7 +45,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const { estado, metodo_pago, pagado_con } = await request.json();
+    const { estado, metodo_pago, pagado_con, descuento } = await request.json();
     const supabase = await createServerSupabaseClient();
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -107,25 +107,22 @@ export async function PATCH(
     updateData.estado = estado;
 
     if (estado === "cerrado") {
-      const calcTotal = async (oid: number): Promise<number> => {
-        const { data: detalles } = await (supabase as any)
-          .from("detalles_orden")
-          .select("cantidad, precio_unitario")
-          .eq("orden_id", oid);
-        return detalles?.reduce((acc: number, d: { cantidad: number; precio_unitario: number }) =>
-          acc + d.cantidad * Number(d.precio_unitario), 0) ?? 0;
-      };
-
-      let total = await calcTotal(ordenId);
-
-      for (const subId of subIds) {
-        total += await calcTotal(subId);
-      }
+      const todosIds = [ordenId, ...subIds];
+      const { data: detalles } = await (supabase as any)
+        .from("detalles_orden")
+        .select("cantidad, precio_unitario")
+        .in("orden_id", todosIds);
+      const total = detalles?.reduce(
+        (acc: number, d: { cantidad: number; precio_unitario: number }) =>
+          acc + d.cantidad * Number(d.precio_unitario),
+        0,
+      ) ?? 0;
 
       updateData.total = total;
       updateData.cerrado_por_id = user.id;
       if (metodo_pago) updateData.metodo_pago = metodo_pago;
       if (pagado_con != null) updateData.pagado_con = pagado_con;
+      if (descuento != null) updateData.descuento = descuento;
     }
 
     const ordenActualizadaRaw = await (supabase as any)
@@ -142,21 +139,26 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    const actualizaciones: Promise<any>[] = [];
     if (esPadre && estado === "cerrado" && subIds.length > 0) {
       const subUpdate: OrdenUpdate = {
         estado: "cerrado",
         cerrado_por_id: user.id,
         metodo_pago: updateData.metodo_pago,
       };
-      await (supabase as any).from("ordenes").update(subUpdate).in("id", subIds);
+      actualizaciones.push(
+        (supabase as any).from("ordenes").update(subUpdate).in("id", subIds),
+      );
     }
-
     if (estado === "cerrado" && esPadre && ordenActualizada?.mesa_id) {
-      await (supabase as any)
-        .from("mesas")
-        .update({ estado: "disponible" })
-        .eq("id", ordenActualizada.mesa_id);
+      actualizaciones.push(
+        (supabase as any)
+          .from("mesas")
+          .update({ estado: "disponible" })
+          .eq("id", ordenActualizada.mesa_id),
+      );
     }
+    await Promise.all(actualizaciones);
 
     return NextResponse.json({ success: true, orden: ordenActualizada });
   } catch (err) {

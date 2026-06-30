@@ -38,12 +38,16 @@ export default function CajaPage() {
   const [ordenes, setOrdenes] = useState<OrdenConSubs[]>([])
   const [resumen, setResumen] = useState({ totalVentas: 0, ordenesCerradas: 0 })
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
     let cancelled = false
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
     async function load() {
+      if (!sucursal?.id) return
+
       const hoy = new Date()
       hoy.setHours(0, 0, 0, 0)
 
@@ -55,17 +59,20 @@ export default function CajaPage() {
           mesas (numero, zona),
           detalles_orden (cantidad, precio_unitario, listo, productos_menu (nombre))`,
           )
+          .eq('sucursal_id', sucursal.id)
           .is('orden_padre_id', null)
           .in('estado', ['entregado', 'cuenta_solicitada'])
           .order('created_at', { ascending: true }),
         supabase
           .from('ordenes')
           .select('id, orden_padre_id')
+          .eq('sucursal_id', sucursal.id)
           .in('estado', ['entregado', 'cuenta_solicitada'])
           .not('orden_padre_id', 'is', null),
         supabase
           .from('ordenes')
           .select('total', { count: 'exact' })
+          .eq('sucursal_id', sucursal.id)
           .eq('estado', 'cerrado')
           .gte('updated_at', hoy.toISOString()),
       ])
@@ -100,6 +107,7 @@ export default function CajaPage() {
             return { ...orden, subTotal };
           })
         );
+
         setOrdenes(enriched);
       }
       if (cerradasRes.data) {
@@ -113,14 +121,28 @@ export default function CajaPage() {
       setLoading(false)
     }
 
+    function debouncedLoad() {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      setRefreshing(true)
+      debounceTimer = setTimeout(async () => {
+        await load()
+        setRefreshing(false)
+      }, 2000)
+    }
+
     load()
 
     const channel = supabase
       .channel('caja-ordenes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'ordenes' },
-        () => load(),
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ordenes',
+          filter: `sucursal_id=eq.${sucursal?.id}`,
+        },
+        () => debouncedLoad(),
       )
       .subscribe()
 
@@ -128,6 +150,7 @@ export default function CajaPage() {
 
     return () => {
       cancelled = true
+      if (debounceTimer) clearTimeout(debounceTimer)
       supabase.removeChannel(channel)
       clearInterval(timer)
     }
@@ -154,8 +177,14 @@ export default function CajaPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+        <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-text-primary">Caja</h1>
+          {refreshing && (
+            <div className="flex items-center gap-1.5 text-xs text-muted">
+              <div className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              Refrescando...
+            </div>
+          )}
         </div>
 
         {/* Day summary */}

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { fetchSucursalBySlug } from '@/lib/sucursal';
 import { OrderHistoryView } from './OrderHistoryView';
 
 export default async function OrdenesPage({
@@ -12,6 +13,9 @@ export default async function OrdenesPage({
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
+
+  const sucursal = await fetchSucursalBySlug(sucursalSlug);
+  if (!sucursal) redirect('/login');
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -34,6 +38,7 @@ export default async function OrdenesPage({
         productos_menu (nombre, precio)
       )
     `)
+    .eq('sucursal_id', sucursal.id)
     .gte('created_at', hoy.toISOString())
     .order('created_at', { ascending: false });
 
