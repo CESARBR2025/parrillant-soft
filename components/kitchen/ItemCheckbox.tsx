@@ -19,11 +19,16 @@ export function ItemCheckbox({ itemId, listo, disabled, onMarked }: ItemCheckbox
     if (disabled || isPending) return;
     const nuevoEstado = !listo;
     startTransition(async () => {
-      const res = await marcarItemListo(itemId, nuevoEstado);
-      if (res.error) {
-        toast.error(res.error);
+      try {
+        const res = await marcarItemListo(itemId, nuevoEstado);
+        if (res.error) {
+          toast.error(res.error);
+        } else {
+          onMarked();
+        }
+      } catch {
+        toast.error('Error de red al marcar ítem');
       }
-      onMarked();
     });
   }
 

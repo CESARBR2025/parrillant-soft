@@ -11,19 +11,12 @@ export function useSound(soundFile: string = "/sounds/didi_pedido.mp3") {
     const audio = new Audio(soundFile);
     audio.preload = "auto";
     audioRef.current = audio;
-    console.log(`[useSound] Audio creado para ${soundFile}`);
 
     const unlock = () => {
-      audio
-        .play()
-        .then(() => {
-          audio.pause();
-          audio.currentTime = 0;
-          console.log(`[useSound] Unlock exitoso para ${soundFile}`);
-        })
-        .catch((e) => {
-          console.warn(`[useSound] Unlock falló para ${soundFile}:`, e.message);
-        });
+      audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+      }).catch(() => {});
     };
 
     unlock();
@@ -40,20 +33,9 @@ export function useSound(soundFile: string = "/sounds/didi_pedido.mp3") {
 
   const play = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio) {
-      console.warn("[useSound] play() llamado pero audioRef es null");
-      return;
-    }
-    console.log("[useSound] play() ejecutándose");
+    if (!audio) return;
     audio.currentTime = 0;
-    audio
-      .play()
-      .then(() => {
-        console.log("[useSound] play() exitoso");
-      })
-      .catch((e) => {
-        console.error("[useSound] play() falló:", e.message);
-      });
+    audio.play().catch(() => {});
   }, []);
 
   return { play };

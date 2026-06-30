@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { marcarOrdenLista } from '@/app/actions/marcarOrdenLista';
 import { Spinner } from '@/components/ui/Spinner';
@@ -16,7 +16,7 @@ interface StationQueueProps {
 }
 
 export function StationQueue({ queue, loading, tipo, onRefetch }: StationQueueProps) {
-  const [isPending, startTransition] = useTransition();
+  const [pendingId, setPendingId] = useState<number | null>(null);
 
   if (loading) {
     return (
@@ -38,14 +38,17 @@ export function StationQueue({ queue, loading, tipo, onRefetch }: StationQueuePr
     );
   }
 
-  function handleMarkReady(ordenId: number) {
-    startTransition(async () => {
+  async function handleMarkReady(ordenId: number) {
+    setPendingId(ordenId);
+    try {
       const res = await marcarOrdenLista(ordenId);
-      if (res.error) {
-        toast.error(res.error);
-      }
-      onRefetch();
-    });
+      if (res.error) toast.error(res.error);
+    } catch {
+      toast.error('Error de red al marcar orden');
+    } finally {
+      setPendingId(null);
+    }
+    onRefetch();
   }
 
   return (
@@ -55,7 +58,7 @@ export function StationQueue({ queue, loading, tipo, onRefetch }: StationQueuePr
           key={order.id}
           order={order}
           onMarkReady={handleMarkReady}
-          isPending={isPending}
+          isPending={pendingId === order.id}
           esSubOrden={order.esSubOrden}
         />
       ))}

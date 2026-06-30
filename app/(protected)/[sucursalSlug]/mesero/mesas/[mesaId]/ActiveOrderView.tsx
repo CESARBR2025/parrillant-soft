@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from '@/components/providers/NavigationProvider';
 import { createClientSupabaseClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/Badge';
@@ -118,7 +119,7 @@ function RondaSection({
             <div className="px-5 pb-3 pt-1">
               <button
                 onClick={() => onServir(ordenId, rondaNum, 'alimento')}
-                disabled={isSubmitting !== null}
+                disabled={isSubmitting !== null && isSubmitting !== `${ordenId}-${rondaNum}-alimento`}
                 className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isSubmitting === `${ordenId}-${rondaNum}-alimento` ? 'Procesando...' : (
@@ -175,7 +176,7 @@ function RondaSection({
             <div className="px-5 pb-3 pt-1">
               <button
                 onClick={() => onServir(ordenId, rondaNum, 'bebida')}
-                disabled={isSubmitting !== null}
+                disabled={isSubmitting !== null && isSubmitting !== `${ordenId}-${rondaNum}-bebida`}
                 className="w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-sky-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isSubmitting === `${ordenId}-${rondaNum}-bebida` ? 'Procesando...' : (
@@ -328,11 +329,8 @@ export function ActiveOrderView({
       }, () => fetchData())
       .subscribe();
 
-    const interval = setInterval(fetchData, 5000);
-
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(interval);
     };
   }, [mesa.id, padreInicial.id, fetchData]);
 
@@ -344,16 +342,25 @@ export function ActiveOrderView({
   const handleServir = async (ordenId: number, ronda: number, tipo: 'alimento' | 'bebida') => {
     const key = `${ordenId}-${ronda}-${tipo}`;
     setIsSubmitting(key);
-    await servirCategoria(ordenId, tipo, ronda);
-    setIsSubmitting(null);
+    try {
+      const result = await servirCategoria(ordenId, tipo, ronda);
+      if (result?.error) toast.error(result.error);
+    } catch {
+      toast.error('Error de red al servir');
+    } finally {
+      setIsSubmitting(null);
+    }
   };
 
   const handleSolicitarCuenta = async () => {
     setIsSubmitting('cuenta');
-    const result = await solicitarCuenta(padre.id);
-    setIsSubmitting(null);
-    if (result.error) {
-      console.error(result.error);
+    try {
+      const result = await solicitarCuenta(padre.id);
+      if (result?.error) toast.error(result.error);
+    } catch {
+      toast.error('Error de red al solicitar cuenta');
+    } finally {
+      setIsSubmitting(null);
     }
   };
 
@@ -367,7 +374,7 @@ export function ActiveOrderView({
             onClick={() => router.push(`/${sucursal?.slug}/mesero/mapa`)}
             className="inline-flex items-center gap-1 text-sm font-medium text-accent bg-accent/10 hover:bg-accent hover:text-white border border-accent/20 hover:border-accent rounded-md px-3 py-1.5 transition-colors mb-3"
           >
-            ← Regresar
+            ← Regresar123
           </button>
           <h1 className="text-xl font-bold text-gray-900">
             Mesa {mesa.numero}
@@ -426,7 +433,7 @@ export function ActiveOrderView({
         {todasEntregadas && (
           <button
             onClick={handleSolicitarCuenta}
-            disabled={isSubmitting !== null}
+            disabled={isSubmitting !== null && isSubmitting !== 'cuenta'}
             className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
             {isSubmitting === 'cuenta' ? 'Procesando...' : 'Solicitar cuenta'}

@@ -76,7 +76,7 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
 
     const supabase = createClientSupabaseClient();
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('ordenes')
       .select(`
         id,
@@ -99,10 +99,6 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
       .eq('sucursal_id', sucursal.id)
       .in('estado', ['pendiente', 'en_preparacion', 'listo'])
       .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error(`[kitchen ${tipo}] Error en fetchOrders:`, error);
-    }
 
     if (!data) {
       setOrders([]);
@@ -140,23 +136,11 @@ export function useKitchenOrders(tipo: 'alimento' | 'bebida', onNewOrder?: OnNew
       })
       .filter((o) => o.items.length > 0);
 
-    console.log(`[kitchen ${tipo}] fetchOrders:`, {
-      rawCount: typedData.length,
-      transformedIds: transformed.map(o => o.id),
-      prevIds: [...prevOrderIdsRef.current],
-      isFirstLoad: isFirstLoadRef.current,
-      hasOnNewOrder: !!onNewOrderRef.current,
-    });
-
     if (!isFirstLoadRef.current && onNewOrderRef.current) {
       const hasNew = transformed.some((o) => !prevOrderIdsRef.current.has(o.id));
-      console.log(`[kitchen ${tipo}] hasNew:`, hasNew);
       if (hasNew) {
-        console.log(`[kitchen ${tipo}] Llamando onNewOrder (play)`);
         onNewOrderRef.current();
       }
-    } else {
-      console.log(`[kitchen ${tipo}] Saltando onNewOrder: firstLoad=${isFirstLoadRef.current}, onNewOrder=${!!onNewOrderRef.current}`);
     }
     prevOrderIdsRef.current = new Set(transformed.map((o) => o.id));
     isFirstLoadRef.current = false;
