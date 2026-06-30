@@ -117,6 +117,7 @@
 |---------|-----------|
 | `tiene_permiso(codigo TEXT)` → BOOLEAN | Verifica si el usuario tiene un permiso vía roles_permisos |
 | `mis_permisos()` → SETOF TEXT | Todos los códigos de permiso del usuario actual |
+| `es_mi_orden(orden_id_param BIGINT)` → BOOLEAN | SECURITY DEFINER: verifica que la orden pertenece al auth.uid() sin activar RLS |
 | `handle_new_user()` | Trigger: crea perfil automático al registrarse |
 | `handle_updated_at()` | Trigger: actualiza `updated_at` automáticamente |
 
@@ -132,7 +133,7 @@
 | `sucursal.mesas.administrar` | super_admin, administrador, gerente_sucursal |
 | `sucursal.menu.administrar` | super_admin, administrador, gerente_sucursal |
 | `sucursal.ordenes.administrar` | super_admin, administrador, gerente_sucursal, caja |
-| `turnos.registrar` | mesero |
+| `turnos.registrar` | mesero, caja, cocina, barra, gerente_sucursal |
 | `turnos.cerrar_cualquiera` | super_admin, administrador, gerente_sucursal |
 | `ordenes.cocina` | cocina |
 | `ordenes.barra` | barra |
@@ -245,9 +246,11 @@ Todas las tablas con RLS usan `public.tiene_permiso('codigo')`:
 1. Email/password → `supabase.auth.signInWithPassword()`
 2. Verifica `perfiles.activo = true`
 3. **super_admin / administrador** → `/admin` (directo, sin sucursal)
-4. **gerente_sucursal** → `/{slug}/admin` (primera sucursal asignada)
-5. **mesero** → verifica turno activo → si no, filtra sucursales con apertura activa (considerando recurrencias y excepciones) → selecciona sucursal → registra turno → `/mesero/mapa`
-6. **Otros** (caja, cocina, barra) → selecciona sucursal → `/{slug}/{ruta_inicio}`
+4. **Resto de roles** → verifica turno activo → si existe, redirige directo al dashboard del rol
+5. Si no hay turno activo: carga sucursales asignadas
+   - **mesero**: filtra sucursales con apertura activa (considerando recurrencias y excepciones)
+   - **caja, cocina, barra, gerente_sucursal**: muestra todas las sucursales asignadas
+6. Selecciona sucursal → confirma registro de turno → `registrarTurno()` → redirige a `/{slug}/{ruta_inicio}` según rol
 
 ---
 

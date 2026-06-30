@@ -107,10 +107,12 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    const rolesConTurno: Rol[] = ['mesero', 'caja', 'cocina', 'barra', 'gerente_sucursal'];
+
     if (
-      perfil.rol === 'mesero' &&
-      rutaProtegida?.rolesPermitidos.includes('mesero') &&
-      !internalPath.startsWith('/mesero/registrar-turno')
+      rolesConTurno.includes(perfil.rol as Rol) &&
+      rutaProtegida?.rolesPermitidos.includes(perfil.rol as Rol) &&
+      (perfil.rol !== 'mesero' || !internalPath.startsWith('/mesero/registrar-turno'))
     ) {
       const turnoRaw = await (supabase as any)
         .from('registro_turnos_personal')
@@ -126,7 +128,10 @@ export async function middleware(request: NextRequest) {
         response.cookies.set('turno_id', turno.id, { path: '/', httpOnly: true });
       } else {
         response.cookies.delete('turno_id');
-        return NextResponse.redirect(new URL(`/${sucursalSlug}/mesero/registrar-turno`, request.url));
+        const destino = perfil.rol === 'mesero'
+          ? `/${sucursalSlug}/mesero/registrar-turno`
+          : '/login';
+        return NextResponse.redirect(new URL(destino, request.url));
       }
     }
 
