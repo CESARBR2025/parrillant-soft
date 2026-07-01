@@ -8,6 +8,7 @@ import { createClientSupabaseClient } from '@/lib/supabase/client';
 import type { Rol, KnownRol, Sucursal } from '@/types/roles';
 import { RUTA_INICIO_POR_ROL } from '@/types/roles';
 import { registrarTurno, obtenerTurnoActivo } from '@/app/actions/turnos';
+import { getMexicoDateString, getMexicoTimeString } from '@/lib/mexico-time';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -90,8 +91,8 @@ export default function LoginPage() {
         let sucsFinal: Sucursal[] = sucs;
 
         if (rol === 'mesero') {
-            const hoy = new Date().toISOString().split('T')[0];
-            const horaActual = new Date().toTimeString().slice(0, 5);
+            const hoy = getMexicoDateString();
+            const horaActual = getMexicoTimeString();
             const sucsIds = sucs.map(s => s.id);
 
             // Aperturas de día único (fecha = hoy)

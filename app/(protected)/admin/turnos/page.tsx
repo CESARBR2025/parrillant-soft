@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getMexicoDateString, getMexicoTimeString } from '@/lib/mexico-time';
 import {
   Store, Clock, UserCheck, CalendarClock, ExternalLink, ChevronRight,
 } from 'lucide-react';
@@ -43,8 +44,8 @@ export default async function GlobalTurnosPage() {
     redirect(`/${sucursales[0].slug}/admin/turnos`);
   }
 
-  const hoy = new Date().toISOString().split('T')[0];
-  const horaActual = new Date().toTimeString().slice(0, 5);
+  const hoy = getMexicoDateString();
+  const horaActual = getMexicoTimeString();
 
   const stats = await Promise.all(
     sucursales.map(async (s) => {

@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getServerSucursalId } from "@/lib/sucursal";
 import { authorize } from "@/lib/auth";
+import { getMexicoDateString } from "@/lib/mexico-time";
 import * as XLSX from "xlsx";
 import type { Database } from "@/types/database.types";
 
@@ -189,7 +190,7 @@ export async function obtenerCorte(fecha?: string): Promise<CorteSummary> {
     const sucursalId = await getServerSucursalId();
     if (!sucursalId) throw new Error("Sucursal no identificada");
 
-    const dia = fecha ?? new Date().toISOString().split("T")[0];
+    const dia = fecha ?? getMexicoDateString();
 
     // 1. Get ALL cortes for the day (sorted newest first)
     const cortesRaw = await supabase
@@ -271,7 +272,7 @@ export async function generarCorte(
   const sucursalId = await getServerSucursalId();
   if (!sucursalId) return { error: "Sucursal no identificada" };
 
-  const hoy = fecha ?? new Date().toISOString().split("T")[0];
+  const hoy = fecha ?? getMexicoDateString();
   const ahora = new Date().toISOString();
 
   // Get the last corte to determine periodo_inicio and saldo_inicial
