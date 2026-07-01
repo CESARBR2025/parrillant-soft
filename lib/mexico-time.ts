@@ -1,4 +1,4 @@
-const TIMEZONE = "America/Mexico_City";
+export const TIMEZONE = "America/Mexico_City";
 
 export function getMexicoDateString(date = new Date()): string {
   const formatter = new Intl.DateTimeFormat("es-MX", {

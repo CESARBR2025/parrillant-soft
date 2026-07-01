@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getServerSucursalId } from "@/lib/sucursal";
 import { authorize } from "@/lib/auth";
-import { getMexicoDateString } from "@/lib/mexico-time";
+import { getMexicoDateString, TIMEZONE } from "@/lib/mexico-time";
 import * as XLSX from "xlsx";
 import type { Database } from "@/types/database.types";
 
@@ -56,7 +56,12 @@ function normalizarMetodo(metodo: string | null): string {
 }
 
 function localMidnight(dia: string): string {
-  return `${dia}T00:00:00Z`;
+  const [year, month, day] = dia.split("-").map(Number);
+  for (const utcHour of [6, 5]) {
+    const candidate = new Date(Date.UTC(year, month - 1, day, utcHour, 0, 0));
+    if (getMexicoDateString(candidate) === dia) return candidate.toISOString();
+  }
+  return new Date(Date.UTC(year, month - 1, day, 6, 0, 0)).toISOString();
 }
 
 /** Get the cajero's declared saldo_inicial_caja for the first corte of the day */
@@ -65,13 +70,27 @@ async function obtenerSaldoInicialCajero(
 ): Promise<number> {
   try {
     const admin = getAdminClient();
+
+    // Get cajeros assigned to this sucursal
+    const usuarioSucRaw = await admin
+      .from("usuario_sucursales")
+      .select("usuario_id")
+      .eq("sucursal_id", sucursalId);
+    const idsSucursal = (usuarioSucRaw.data ?? []).map(
+      (u: { usuario_id: string }) => u.usuario_id,
+    );
+    if (idsSucursal.length === 0) return 0;
+
+    // Filter only users with "caja" role
     const perfilesRaw = await admin
       .from("perfiles")
       .select("id")
+      .in("id", idsSucursal)
       .eq("rol", "caja");
     const idsCaja = (perfilesRaw.data ?? []).map((p: { id: string }) => p.id);
     if (idsCaja.length === 0) return 0;
 
+    // Get the active turno with saldo_inicial_caja set
     const turnoRaw = await admin
       .from("registro_turnos_personal")
       .select("saldo_inicial_caja")
@@ -79,10 +98,11 @@ async function obtenerSaldoInicialCajero(
       .eq("sucursal_id", sucursalId)
       .eq("activo", true)
       .is("fin", null)
-      .order("inicio", { ascending: true })
+      .not("saldo_inicial_caja", "is", null)
+      .order("inicio", { ascending: false })
       .limit(1);
 
-    return (turnoRaw.data?.[0] as { saldo_inicial_caja: number | null } | undefined)
+    return (turnoRaw.data?.[0] as { saldo_inicial_caja: number } | undefined)
       ?.saldo_inicial_caja ?? 0;
   } catch (e) {
     console.error("[obtenerSaldoInicialCajero] Error:", e);
