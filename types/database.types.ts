@@ -39,6 +39,7 @@ export interface Turno {
   reasignado_de: string | null;
   cerrado_por: string | null;
   notas: string | null;
+  saldo_inicial_caja: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -47,12 +48,16 @@ export interface CorteCaja {
   id: string;
   sucursal_id: string;
   fecha: string;
+  periodo_inicio: string;
+  periodo_fin: string;
+  saldo_inicial: number;
   total_efectivo: number;
   total_tarjeta: number;
   total_transferencia: number;
   total_descuentos: number;
   total_general: number;
   total_ordenes: number;
+  dinero_dejado: number | null;
   generado_por: string;
   created_at: string;
   detalle: Json;
@@ -113,12 +118,16 @@ export type Database = {
           id?: string;
           sucursal_id: string;
           fecha?: string;
+          periodo_inicio?: string;
+          periodo_fin?: string;
+          saldo_inicial?: number;
           total_efectivo?: number;
           total_tarjeta?: number;
           total_transferencia?: number;
           total_descuentos?: number;
           total_general?: number;
           total_ordenes?: number;
+          dinero_dejado?: number | null;
           generado_por: string;
           created_at?: string;
           detalle?: Json;
@@ -127,12 +136,16 @@ export type Database = {
           id?: string;
           sucursal_id?: string;
           fecha?: string;
+          periodo_inicio?: string;
+          periodo_fin?: string;
+          saldo_inicial?: number;
           total_efectivo?: number;
           total_tarjeta?: number;
           total_transferencia?: number;
           total_descuentos?: number;
           total_general?: number;
           total_ordenes?: number;
+          dinero_dejado?: number | null;
           generado_por?: string;
           created_at?: string;
           detalle?: Json;
@@ -378,6 +391,7 @@ export type Database = {
           reasignado_de?: string | null;
           cerrado_por?: string | null;
           notas?: string | null;
+          saldo_inicial_caja?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -392,6 +406,7 @@ export type Database = {
           reasignado_de?: string | null;
           cerrado_por?: string | null;
           notas?: string | null;
+          saldo_inicial_caja?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -439,6 +454,7 @@ export type Database = {
           reasignado_de?: string | null;
           cerrado_por?: string | null;
           notas?: string | null;
+          saldo_inicial_caja?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -453,6 +469,7 @@ export type Database = {
           reasignado_de?: string | null;
           cerrado_por?: string | null;
           notas?: string | null;
+          saldo_inicial_caja?: number | null;
           created_at?: string;
           updated_at?: string;
         };

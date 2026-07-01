@@ -1,12 +1,19 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
-import { generarCorte, obtenerCorte } from '@/app/actions/cortes';
+import { obtenerCorte } from '@/app/actions/cortes';
+import { CorteModal } from './CorteModal';
 import { ResumenCard } from './ResumenCard';
 import { OrdenesTable } from './OrdenesTable';
 import { ExportButton } from './ExportButton';
-import { ShieldCheck, ShieldAlert, Lock, CheckCircle2 } from 'lucide-react';
+import {
+  ShieldCheck,
+  Lock,
+  CheckCircle2,
+  Clock,
+  History,
+} from 'lucide-react';
 import type { CorteCaja } from '@/types/database.types';
 
 interface OrdenRow {
@@ -22,8 +29,10 @@ interface OrdenRow {
 }
 
 interface CorteDiarioProps {
-  initialCorte: CorteCaja | null;
-  initialEnVivo: {
+  cortes: CorteCaja[];
+  periodoActual: {
+    inicio: string;
+    saldo_inicial: number;
     total_efectivo: number;
     total_tarjeta: number;
     total_transferencia: number;
@@ -32,15 +41,48 @@ interface CorteDiarioProps {
     total_ordenes: number;
     ordenes: OrdenRow[];
   } | null;
-  yaGenerado: boolean;
   puedeGenerar: boolean;
+  aperturaHoy?: string | null;
+  cierreHoy?: string | null;
 }
 
-export function CorteDiario({ initialCorte, initialEnVivo, yaGenerado, puedeGenerar }: CorteDiarioProps) {
-  const [corte, setCorte] = useState<CorteCaja | null>(initialCorte);
-  const [enVivo, setEnVivo] = useState(initialEnVivo);
-  const [generado, setGenerado] = useState(yaGenerado);
-  const [generando, setGenerando] = useState(false);
+function localDateStr(): string {
+  const d = new Date();
+  const offset = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - offset * 60000);
+  return local.toISOString().split('T')[0];
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('es-MX', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatTimeRange(desde: string, hasta?: string) {
+  const isMidnight = desde.endsWith('T00:00:00Z');
+  const d = isMidnight ? 'Hoy' : formatTime(desde);
+  const h = hasta === undefined || hasta === 'ahora' ? 'ahora' : formatTime(hasta);
+  return `${d} → ${h}`;
+}
+
+function formatPeriodLabel(inicio: string): string {
+  return inicio.endsWith('T00:00:00Z') ? 'Hoy' : formatTime(inicio);
+}
+
+export function CorteDiario({
+  cortes: initialCortes,
+  periodoActual: initialPeriodo,
+  puedeGenerar,
+  aperturaHoy: initialAperturaHoy,
+  cierreHoy: initialCierreHoy,
+}: CorteDiarioProps) {
+  const [cortesList, setCortesList] = useState<CorteCaja[]>(initialCortes);
+  const [currentPeriod, setCurrentPeriod] = useState(initialPeriodo);
+  const [aperturaHoy, setAperturaHoy] = useState(initialAperturaHoy ?? null);
+  const [cierreHoy, setCierreHoy] = useState(initialCierreHoy ?? null);
+  const [showCorteModal, setShowCorteModal] = useState(false);
 
   const fechaHoy = new Date().toLocaleDateString('es-MX', {
     year: 'numeric',
@@ -48,134 +90,142 @@ export function CorteDiario({ initialCorte, initialEnVivo, yaGenerado, puedeGene
     day: 'numeric',
   });
 
-  const handleGenerar = useCallback(async () => {
-    setGenerando(true);
-    try {
-      const result = await generarCorte();
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
+  const isPastClosingTime = useMemo(() => {
+    if (!cierreHoy) return false;
+    const ahora = new Date();
+    const [h, m] = cierreHoy.split(':').map(Number);
+    const cierre = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), h, m);
+    return ahora > cierre;
+  }, [cierreHoy]);
 
-      toast.success('Corte generado exitosamente');
+  const labelCorte = isPastClosingTime ? 'Generar corte del día' : 'Generar corte parcial';
 
-      const resumen = await obtenerCorte();
-      if (resumen.corte) {
-        setCorte(resumen.corte);
-        setGenerado(true);
-        setEnVivo(null);
-      }
-    } catch {
-      toast.error('Error al generar el corte');
-    } finally {
-      setGenerando(false);
-    }
+  // Re-fetch with local date on mount (fixes server/client date mismatch)
+  useEffect(() => {
+    const fechaLocal = localDateStr();
+    obtenerCorte(fechaLocal).then((res) => {
+      setCortesList(res.cortes);
+      setCurrentPeriod(res.periodoActual);
+      if (res.aperturaHoy) setAperturaHoy(res.aperturaHoy);
+      if (res.cierreHoy) setCierreHoy(res.cierreHoy);
+    });
   }, []);
 
-  if (generado && corte) {
-    const detalle = corte.detalle as { ordenes: OrdenRow[] } | null;
+  const handleSuccess = (cortes: CorteCaja[], periodoActual: any) => {
+    setCortesList(cortes);
+    setCurrentPeriod(periodoActual);
+  };
 
-    return (
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-text-primary">Corte de Caja</h1>
-            <p className="text-sm text-muted mt-1 capitalize">{fechaHoy}</p>
-          </div>
-          <ExportButton />
-        </div>
-
-        <div className="bg-emerald-900/20 border border-emerald-800/30 rounded-2xl p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-          </div>
-          <div>
-            <p className="font-semibold text-text-primary">Corte generado</p>
-            <p className="text-sm text-muted">
-              {new Date(corte.created_at).toLocaleString('es-MX', {
-                dateStyle: 'long',
-                timeStyle: 'short',
-              })}
-            </p>
-          </div>
-        </div>
-
-        <ResumenCard
-          efectivo={corte.total_efectivo}
-          tarjeta={corte.total_tarjeta}
-          transferencia={corte.total_transferencia}
-          descuentos={corte.total_descuentos}
-          totalGeneral={corte.total_general}
-          totalOrdenes={corte.total_ordenes}
-        />
-
-        {detalle?.ordenes && detalle.ordenes.length > 0 && (
-          <OrdenesTable ordenes={detalle.ordenes} />
-        )}
-      </div>
-    );
-  }
+  const tienePeriodoActivo = currentPeriod && currentPeriod.total_ordenes > 0;
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Corte de Caja</h1>
+          <h1 className="text-2xl font-bold text-text-primary">Cortes de Caja</h1>
           <p className="text-sm text-muted mt-1 capitalize">{fechaHoy}</p>
         </div>
-
-        <div className="flex gap-2">
-          <ExportButton label="Exportar Vista Previa" />
-        </div>
+        <ExportButton />
       </div>
 
-      {enVivo && enVivo.total_ordenes > 0 ? (
-        <>
-          <ResumenCard
-            efectivo={enVivo.total_efectivo}
-            tarjeta={enVivo.total_tarjeta}
-            transferencia={enVivo.total_transferencia}
-            descuentos={enVivo.total_descuentos}
-            totalGeneral={enVivo.total_general}
-            totalOrdenes={enVivo.total_ordenes}
-          />
-
-          <div className="bg-amber-900/20 border border-amber-800/30 rounded-2xl p-5 flex items-start gap-4">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
-              <ShieldAlert className="w-5 h-5 text-amber-500" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-text-primary mb-1">
-                Corte del día no generado aún
-              </p>
-              <p className="text-sm text-muted mb-4">
-                Revisa las órdenes del día antes de generar el corte. Una vez generado,
-                quedará congelado y disponible para exportar.
-              </p>
-              <div className="flex gap-3">
-                {puedeGenerar && (
-                  <button
-                    onClick={handleGenerar}
-                    disabled={generando}
-                    className="flex items-center gap-2 bg-accent text-white rounded-xl px-5 py-2.5 text-sm font-bold hover:bg-accent-dark transition-all disabled:opacity-50 shadow-accent"
-                  >
-                    {generando ? (
-                      <>Generando...</>
-                    ) : (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        Generar Corte
-                      </>
-                    )}
-                  </button>
+      {/* List of completed cortes */}
+      {cortesList.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm text-muted">
+            <History className="w-4 h-4" />
+            <span className="font-semibold text-text-primary">
+              Cortes generados hoy ({cortesList.length})
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {cortesList.map((c, i) => (
+              <div
+                key={c.id}
+                className="bg-card rounded-xl border border-border/60 p-4 space-y-2"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-accent uppercase tracking-wider">
+                    Corte #{cortesList.length - i}
+                  </span>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                </div>
+                <p className="text-xs text-muted">
+                  <Clock className="w-3 h-3 inline mr-1" />
+                  {formatTimeRange(c.periodo_inicio, c.periodo_fin)}
+                </p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Efectivo</span>
+                  <span className="font-semibold text-text-primary">
+                    ${c.total_efectivo.toFixed(2)}
+                  </span>
+                </div>
+                {c.dinero_dejado !== null && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted">Dejó en caja</span>
+                    <span className="font-semibold text-amber-500">
+                      ${c.dinero_dejado.toFixed(2)}
+                    </span>
+                  </div>
                 )}
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Current period - has orders */}
+      {tienePeriodoActivo && currentPeriod ? (
+        <>
+          {/* Period info bar */}
+          <div className="bg-accent/10 border border-accent/30 rounded-2xl p-4 flex items-center gap-3">
+            <Clock className="w-5 h-5 text-accent shrink-0" />
+            <div className="text-sm">
+              <span className="font-semibold text-text-primary">Período: </span>
+              <span className="text-muted">
+                {formatPeriodLabel(currentPeriod.inicio)} → ahora
+              </span>
+            </div>
+            <div className="ml-auto flex items-center gap-3">
+              <span className="text-sm text-muted">
+                <span className="font-semibold text-text-primary">Saldo inicial: </span>
+                <span className="text-accent font-bold">
+                  ${currentPeriod.saldo_inicial.toFixed(2)}
+                </span>
+              </span>
+              {puedeGenerar && (
+                <button
+                  onClick={() => setShowCorteModal(true)}
+                  className="flex items-center gap-2 bg-accent text-white rounded-xl px-4 py-2 text-sm font-bold hover:bg-accent-dark transition-all shadow-accent shrink-0"
+                >
+                  <Lock className="w-4 h-4" />
+                  {labelCorte}
+                </button>
+              )}
             </div>
           </div>
 
-          <OrdenesTable ordenes={enVivo.ordenes} />
+          <ResumenCard
+            efectivo={currentPeriod.total_efectivo}
+            tarjeta={currentPeriod.total_tarjeta}
+            transferencia={currentPeriod.total_transferencia}
+            descuentos={currentPeriod.total_descuentos}
+            totalGeneral={currentPeriod.total_general}
+            totalOrdenes={currentPeriod.total_ordenes}
+          />
+
+          <OrdenesTable ordenes={currentPeriod.ordenes} />
         </>
+      ) : cortesList.length > 0 && currentPeriod && currentPeriod.total_ordenes === 0 ? (
+        /* Current period has no orders, but cortes exist */
+        <div className="bg-card border border-border/60 rounded-2xl p-5 flex items-center gap-4">
+          <Clock className="w-5 h-5 text-muted shrink-0" />
+          <p className="text-sm text-muted">
+            Período <strong className="text-text-primary">{formatPeriodLabel(currentPeriod.inicio)}</strong> → ahora — Sin órdenes cerradas aún
+          </p>
+        </div>
       ) : (
+        /* No cortes and no orders */
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <ShieldCheck className="w-16 h-16 text-muted mb-4" />
           <p className="text-lg text-muted">No hay órdenes cerradas hoy</p>
@@ -183,6 +233,17 @@ export function CorteDiario({ initialCorte, initialEnVivo, yaGenerado, puedeGene
             Las órdenes se mostrarán aquí una vez que se hayan cobrado
           </p>
         </div>
+      )}
+
+      {currentPeriod && (
+        <CorteModal
+          open={showCorteModal}
+          onClose={() => setShowCorteModal(false)}
+          periodo={currentPeriod}
+          horarioApertura={aperturaHoy}
+          horarioCierre={cierreHoy}
+          onSuccess={handleSuccess}
+        />
       )}
     </div>
   );

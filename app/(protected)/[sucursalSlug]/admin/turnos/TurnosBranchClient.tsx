@@ -240,12 +240,22 @@ export function TurnosBranchClient({
   }
 
   async function handleCerrarTurno(turnoId: string) {
-    if (!confirm('¿Cerrar este turno del mesero?')) return;
+    if (!confirm('¿Cerrar este turno?')) return;
     setIsSubmitting(turnoId);
     const result = await cerrarTurno(turnoId);
     setIsSubmitting(null);
     if (result.error) {
-      toast.error(result.error);
+      if (result.requiereCorte) {
+        toast.error(result.error, {
+          action: {
+            label: 'Ir a Corte',
+            onClick: () => router.push(`/${sucursal.slug}/admin/corte`),
+          },
+          duration: 10000,
+        });
+      } else {
+        toast.error(result.error);
+      }
     } else {
       toast.success('Turno cerrado');
       router.refresh();

@@ -448,12 +448,13 @@ export async function cerrarTurno(turnoId: string) {
 
   const turnoRaw = await (supabase as any)
     .from("registro_turnos_personal")
-    .select("usuario_id, sucursal_id")
+    .select("usuario_id, sucursal_id, inicio")
     .eq("id", turnoId)
     .single();
   const turno = turnoRaw.data as {
     usuario_id: string;
     sucursal_id: string;
+    inicio: string;
   } | null;
 
   if (!turno) return { error: "Turno no encontrado" };
@@ -465,10 +466,62 @@ export async function cerrarTurno(turnoId: string) {
     return { error: "No puedes cerrar el turno de otro usuario" };
   }
 
+  const ahora = new Date().toISOString();
+  const hoy = ahora.split('T')[0];
+
+  // Check if this user's role requires corte before closing
+  const perfilRaw = await (supabase as any)
+    .from("perfiles")
+    .select("rol")
+    .eq("id", turno.usuario_id)
+    .single();
+  const perfil = perfilRaw.data as { rol: string } | null;
+
+  if (perfil) {
+    const puedeCorte = await (supabase as any)
+      .from("roles_permisos")
+      .select("*", { count: "exact", head: true })
+      .eq("rol_nombre", perfil.rol)
+      .eq("permiso_codigo", "sucursal.cortes.generar");
+
+    if (puedeCorte.count && puedeCorte.count > 0) {
+      const ultimoCorteRaw = await (supabase as any)
+        .from("cortes_caja")
+        .select("periodo_fin")
+        .eq("sucursal_id", turno.sucursal_id)
+        .eq("fecha", hoy)
+        .order("periodo_fin", { ascending: false })
+        .limit(1);
+
+      const ultimoCorte = ultimoCorteRaw.data?.[0] as { periodo_fin: string } | null;
+
+      const desde = ultimoCorte
+        ? ultimoCorte.periodo_fin
+        : `${hoy}T00:00:00Z`;
+
+      if (desde < ahora) {
+        const { count } = await (supabase as any)
+          .from("ordenes")
+          .select("*", { count: "exact", head: true })
+          .eq("sucursal_id", turno.sucursal_id)
+          .eq("estado", "cerrado")
+          .gte("updated_at", desde)
+          .lt("updated_at", ahora);
+
+        if (count && count > 0) {
+          return {
+            error: "Debes generar un corte de caja antes de cerrar este turno. Hay órdenes cerradas pendientes de corte.",
+            requiereCorte: true,
+          };
+        }
+      }
+    }
+  }
+
   const { error } = await (supabase as any)
     .from("registro_turnos_personal")
     .update({
-      fin: new Date().toISOString(),
+      fin: ahora,
       activo: false,
       cerrado_por: esAdmin ? user.id : null,
     })
@@ -663,6 +716,32 @@ export async function obtenerSucursalesConTurnosActivos() {
 
   console.log('[obtenerSucursalesConTurnosActivos] ids resultado:', ids);
   return ids;
+}
+
+export async function registrarSaldoInicialCaja(
+  turnoId: string,
+  monto: number,
+): Promise<{ error?: string; success?: boolean }> {
+  const supabase = await createServerSupabaseClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'No autorizado' };
+
+  if (monto < 0) return { error: 'El saldo inicial no puede ser negativo' };
+
+  const { error } = await (supabase as any)
+    .from('registro_turnos_personal')
+    .update({ saldo_inicial_caja: monto })
+    .eq('id', turnoId)
+    .eq('usuario_id', user.id)
+    .eq('activo', true);
+
+  if (error) {
+    console.error('[registrarSaldoInicialCaja] Error:', error);
+    return { error: error.message };
+  }
+
+  return { success: true };
 }
 
 export async function obtenerTurnoActivo(accessToken?: string) {

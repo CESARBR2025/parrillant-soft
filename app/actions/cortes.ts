@@ -1,89 +1,115 @@
-'use server';
+"use server";
 
-import { revalidatePath } from 'next/cache';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getServerSucursalId, getServerSucursalSlug } from '@/lib/sucursal';
-import { authorize } from '@/lib/auth';
-import * as XLSX from 'xlsx';
-import type { Database } from '@/types/database.types';
+import { createClient } from "@supabase/supabase-js";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getServerSucursalId } from "@/lib/sucursal";
+import { authorize } from "@/lib/auth";
+import * as XLSX from "xlsx";
+import type { Database } from "@/types/database.types";
 
-type OrdenRow = Database['public']['Tables']['ordenes']['Row'];
-type CorteCaja = Database['public']['Tables']['cortes_caja']['Row'];
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
+
+type CorteCaja = Database["public"]["Tables"]["cortes_caja"]["Row"];
+
+interface OrdenRow {
+  id: number;
+  mesa: number;
+  zona: string | null;
+  mesero: string;
+  total: number;
+  metodo_pago: string;
+  descuento: number;
+  items: number;
+  cerrado_a_las: string;
+}
+
+interface PeriodoActual {
+  inicio: string;
+  saldo_inicial: number;
+  total_efectivo: number;
+  total_tarjeta: number;
+  total_transferencia: number;
+  total_descuentos: number;
+  total_general: number;
+  total_ordenes: number;
+  ordenes: OrdenRow[];
+}
 
 interface CorteSummary {
-  corte: CorteCaja | null;
-  enVivo: {
-    total_efectivo: number;
-    total_tarjeta: number;
-    total_transferencia: number;
-    total_descuentos: number;
-    total_general: number;
-    total_ordenes: number;
-    ordenes: Array<{
-      id: number;
-      mesa: number;
-      zona: string | null;
-      mesero: string;
-      total: number;
-      metodo_pago: string;
-      descuento: number;
-      items: number;
-      cerrado_a_las: string;
-    }>;
-  } | null;
-  yaGenerado: boolean;
+  cortes: CorteCaja[];
+  ultimoCorte: CorteCaja | null;
+  periodoActual: PeriodoActual | null;
+  aperturaHoy: string | null;
+  cierreHoy: string | null;
 }
 
 function normalizarMetodo(metodo: string | null): string {
-  if (!metodo) return 'efectivo';
+  if (!metodo) return "efectivo";
   return metodo;
 }
 
-export async function obtenerCorte(fecha?: string): Promise<CorteSummary> {
-  const supabase = await createServerSupabaseClient();
+function localMidnight(dia: string): string {
+  return `${dia}T00:00:00Z`;
+}
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('No autorizado');
+/** Get the cajero's declared saldo_inicial_caja for the first corte of the day */
+async function obtenerSaldoInicialCajero(
+  sucursalId: string,
+): Promise<number> {
+  try {
+    const admin = getAdminClient();
+    const perfilesRaw = await admin
+      .from("perfiles")
+      .select("id")
+      .eq("rol", "caja");
+    const idsCaja = (perfilesRaw.data ?? []).map((p: { id: string }) => p.id);
+    if (idsCaja.length === 0) return 0;
 
-  const sucursalId = await getServerSucursalId();
-  if (!sucursalId) throw new Error('Sucursal no identificada');
+    const turnoRaw = await admin
+      .from("registro_turnos_personal")
+      .select("saldo_inicial_caja")
+      .in("usuario_id", idsCaja)
+      .eq("sucursal_id", sucursalId)
+      .eq("activo", true)
+      .is("fin", null)
+      .order("inicio", { ascending: true })
+      .limit(1);
 
-  const dia = fecha ?? new Date().toISOString().split('T')[0];
-
-  const corteExistenteRaw = await supabase
-    .from('cortes_caja')
-    .select('*')
-    .eq('sucursal_id', sucursalId)
-    .eq('fecha', dia)
-    .order('created_at', { ascending: false })
-    .limit(1);
-
-  const corteExistente = corteExistenteRaw.data?.[0] as CorteCaja | undefined;
-
-  if (corteExistente) {
-    return {
-      corte: corteExistente,
-      enVivo: null,
-      yaGenerado: true,
-    };
+    return (turnoRaw.data?.[0] as { saldo_inicial_caja: number | null } | undefined)
+      ?.saldo_inicial_caja ?? 0;
+  } catch (e) {
+    console.error("[obtenerSaldoInicialCajero] Error:", e);
+    return 0;
   }
+}
 
-  const inicioDelDia = `${dia}T00:00:00Z`;
-  const finDelDia = `${dia}T23:59:59Z`;
-
+async function fetchOrdenes(
+  supabase: any,
+  sucursalId: string,
+  desde: string,
+  hasta: string,
+): Promise<PeriodoActual | null> {
   const ordenesRaw = await supabase
-    .from('ordenes')
-    .select(`
+    .from("ordenes")
+    .select(
+      `
       id, total, metodo_pago, pagado_con, descuento, created_at, updated_at, mesa_id,
       mesas!inner(numero, zona),
       perfiles!ordenes_mesero_id_fkey!inner(nombre, apellido)
-    `)
-    .eq('sucursal_id', sucursalId)
-    .eq('estado', 'cerrado')
-    .gte('updated_at', inicioDelDia)
-    .lte('updated_at', finDelDia)
-    .is('orden_padre_id', null)
-    .order('updated_at', { ascending: true });
+    `,
+    )
+    .eq("sucursal_id", sucursalId)
+    .eq("estado", "cerrado")
+    .gte("updated_at", desde)
+    .lte("updated_at", hasta)
+    .is("orden_padre_id", null)
+    .order("updated_at", { ascending: true });
 
   const ordenes = ordenesRaw.data as Array<{
     id: number;
@@ -98,29 +124,14 @@ export async function obtenerCorte(fecha?: string): Promise<CorteSummary> {
     perfiles: { nombre: string; apellido: string | null };
   }> | null;
 
-  if (!ordenes || ordenes.length === 0) {
-    return {
-      corte: null,
-      enVivo: {
-        total_efectivo: 0,
-        total_tarjeta: 0,
-        total_transferencia: 0,
-        total_descuentos: 0,
-        total_general: 0,
-        total_ordenes: 0,
-        ordenes: [],
-      },
-      yaGenerado: false,
-    };
-  }
+  if (!ordenes || ordenes.length === 0) return null;
 
   let totalEfectivo = 0;
   let totalTarjeta = 0;
   let totalTransferencia = 0;
   let totalDescuentos = 0;
   let totalGeneral = 0;
-  let totalOrdenes = 0;
-  const ordenesDetalle = [];
+  const ordenesDetalle: OrdenRow[] = [];
 
   for (const o of ordenes) {
     const metodo = normalizarMetodo(o.metodo_pago);
@@ -130,17 +141,15 @@ export async function obtenerCorte(fecha?: string): Promise<CorteSummary> {
     totalGeneral += total;
     totalDescuentos += descuento;
 
-    if (metodo === 'efectivo') totalEfectivo += total;
-    else if (metodo === 'tarjeta') totalTarjeta += total;
-    else if (metodo === 'transferencia') totalTransferencia += total;
-
-    totalOrdenes++;
+    if (metodo === "efectivo") totalEfectivo += total;
+    else if (metodo === "tarjeta") totalTarjeta += total;
+    else if (metodo === "transferencia") totalTransferencia += total;
 
     ordenesDetalle.push({
       id: o.id,
       mesa: o.mesas.numero,
       zona: o.mesas.zona,
-      mesero: `${o.perfiles.nombre}${o.perfiles.apellido ? ` ${o.perfiles.apellido}` : ''}`,
+      mesero: `${o.perfiles.nombre}${o.perfiles.apellido ? ` ${o.perfiles.apellido}` : ""}`,
       total,
       metodo_pago: metodo,
       descuento,
@@ -151,93 +160,226 @@ export async function obtenerCorte(fecha?: string): Promise<CorteSummary> {
 
   for (const det of ordenesDetalle) {
     const { count } = await supabase
-      .from('detalles_orden')
-      .select('*', { count: 'exact', head: true })
-      .eq('orden_id', det.id);
+      .from("detalles_orden")
+      .select("*", { count: "exact", head: true })
+      .eq("orden_id", det.id);
     det.items = count ?? 0;
   }
 
   return {
-    corte: null,
-    enVivo: {
-      total_efectivo: totalEfectivo,
-      total_tarjeta: totalTarjeta,
-      total_transferencia: totalTransferencia,
-      total_descuentos: totalDescuentos,
-      total_general: totalGeneral,
-      total_ordenes: totalOrdenes,
-      ordenes: ordenesDetalle,
-    },
-    yaGenerado: false,
+    inicio: desde,
+    saldo_inicial: 0,
+    total_efectivo: totalEfectivo,
+    total_tarjeta: totalTarjeta,
+    total_transferencia: totalTransferencia,
+    total_descuentos: totalDescuentos,
+    total_general: totalGeneral,
+    total_ordenes: ordenes.length,
+    ordenes: ordenesDetalle,
   };
 }
 
-export async function generarCorte(): Promise<{ error?: string; corteId?: string }> {
-  const auth = await authorize('sucursal.cortes.generar');
+export async function obtenerCorte(fecha?: string): Promise<CorteSummary> {
+  try {
+    const supabase = await createServerSupabaseClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("No autorizado");
+
+    const sucursalId = await getServerSucursalId();
+    if (!sucursalId) throw new Error("Sucursal no identificada");
+
+    const dia = fecha ?? new Date().toISOString().split("T")[0];
+
+    // 1. Get ALL cortes for the day (sorted newest first)
+    const cortesRaw = await supabase
+      .from("cortes_caja")
+      .select("*")
+      .eq("sucursal_id", sucursalId)
+      .eq("fecha", dia)
+      .order("periodo_fin", { ascending: false });
+
+    const cortes = (cortesRaw.data ?? []) as CorteCaja[];
+    const ultimoCorte = cortes.length > 0 ? cortes[0] : null;
+
+    // 2. Get branch's schedule for today (handles recurrencia)
+    const aperturasRaw = await supabase
+      .from("aperturas_turno")
+      .select("fecha, hora_inicio, hora_fin, recurrencia, recurrencia_fin")
+      .eq("sucursal_id", sucursalId)
+      .eq("activa", true);
+    const aperturas = (aperturasRaw.data ?? []) as Array<{
+      fecha: string;
+      hora_inicio: string;
+      hora_fin: string;
+      recurrencia: string | null;
+      recurrencia_fin: string | null;
+    }>;
+    let aperturaHoy: string | null = null;
+    let cierreHoy: string | null = null;
+    for (const a of aperturas) {
+      if (a.recurrencia) {
+        if (a.fecha <= dia && (!a.recurrencia_fin || a.recurrencia_fin >= dia)) {
+          aperturaHoy = a.hora_inicio;
+          cierreHoy = a.hora_fin;
+          break;
+        }
+      } else if (a.fecha === dia) {
+        aperturaHoy = a.hora_inicio;
+        cierreHoy = a.hora_fin;
+        break;
+      }
+    }
+
+    // 3. Calculate the current period
+    //    From: last corte's periodo_fin, or midnight
+    //    To: now
+    const ahora = new Date().toISOString();
+    const periodoDesde = ultimoCorte
+      ? ultimoCorte.periodo_fin
+      : localMidnight(dia);
+    const saldoInicial = ultimoCorte
+      ? (ultimoCorte.dinero_dejado ?? 0)
+      : await obtenerSaldoInicialCajero(sucursalId);
+
+    if (ultimoCorte && ultimoCorte.periodo_fin >= ahora) {
+      return { cortes, ultimoCorte, periodoActual: null, aperturaHoy, cierreHoy };
+    }
+
+    const periodoActual = await fetchOrdenes(supabase, sucursalId, periodoDesde, ahora);
+
+    if (periodoActual) {
+      periodoActual.saldo_inicial = saldoInicial;
+      periodoActual.inicio = periodoDesde;
+    }
+
+    return { cortes, ultimoCorte, periodoActual, aperturaHoy, cierreHoy };
+  } catch (e) {
+    console.error("[obtenerCorte] Error:", e);
+    return { cortes: [], ultimoCorte: null, periodoActual: null, aperturaHoy: null, cierreHoy: null };
+  }
+}
+
+export async function generarCorte(
+  dineroDejado: number,
+  fecha?: string,
+): Promise<{ error?: string; corteId?: string }> {
+  const auth = await authorize("sucursal.cortes.generar");
   if (!auth.authorized) return { error: auth.error };
   const supabase = auth.supabase;
 
   const sucursalId = await getServerSucursalId();
-  if (!sucursalId) return { error: 'Sucursal no identificada' };
+  if (!sucursalId) return { error: "Sucursal no identificada" };
 
-  const slug = await getServerSucursalSlug();
-  if (!slug) return { error: 'Sucursal no identificada' };
+  const hoy = fecha ?? new Date().toISOString().split("T")[0];
+  const ahora = new Date().toISOString();
 
-  const hoy = new Date().toISOString().split('T')[0];
-
-  const existenteRaw = await supabase
-    .from('cortes_caja')
-    .select('id')
-    .eq('sucursal_id', sucursalId)
-    .eq('fecha', hoy)
+  // Get the last corte to determine periodo_inicio and saldo_inicial
+  const ultimoCorteRaw = await supabase
+    .from("cortes_caja")
+    .select("*")
+    .eq("sucursal_id", sucursalId)
+    .eq("fecha", hoy)
+    .order("periodo_fin", { ascending: false })
     .limit(1);
 
-  if (existenteRaw.data && existenteRaw.data.length > 0) {
-    return { error: 'Ya existe un corte generado para hoy' };
-  }
+  const ultimoCorte = ultimoCorteRaw.data?.[0] as CorteCaja | undefined;
 
-  const resumen = await obtenerCorte(hoy);
-  if (resumen.yaGenerado) {
-    return { error: 'Ya existe un corte generado para hoy' };
-  }
+  const periodoInicio = ultimoCorte
+    ? ultimoCorte.periodo_fin
+    : localMidnight(hoy);
+  const saldoInicial = ultimoCorte
+    ? (ultimoCorte.dinero_dejado ?? 0)
+    : await obtenerSaldoInicialCajero(sucursalId);
 
-  const enVivo = resumen.enVivo;
-  if (!enVivo) return { error: 'No hay datos para generar el corte' };
+  // Fetch ALL orders closed in this period (any user/role)
+  const enVivo = await fetchOrdenes(supabase, sucursalId, periodoInicio, ahora);
+
+  if (!enVivo) {
+    return {
+      error: "No hay órdenes cerradas en este período para generar el corte",
+    };
+  }
 
   const detalle = {
-    generado_el: new Date().toISOString(),
+    generado_el: ahora,
     sucursal_id: sucursalId,
     ordenes: enVivo.ordenes,
   };
 
   const insertRaw = await supabase
-    .from('cortes_caja')
+    .from("cortes_caja")
     .insert({
       sucursal_id: sucursalId,
       fecha: hoy,
+      periodo_inicio: periodoInicio,
+      periodo_fin: ahora,
+      saldo_inicial: saldoInicial,
       total_efectivo: enVivo.total_efectivo,
       total_tarjeta: enVivo.total_tarjeta,
       total_transferencia: enVivo.total_transferencia,
       total_descuentos: enVivo.total_descuentos,
       total_general: enVivo.total_general,
       total_ordenes: enVivo.total_ordenes,
+      dinero_dejado: dineroDejado,
       generado_por: auth.userId,
       detalle: detalle as any,
     })
-    .select('id')
+    .select("id")
     .single();
 
   const corte = insertRaw.data as { id: string } | null;
   const error = insertRaw.error;
 
   if (error || !corte) {
-    return { error: error?.message ?? 'Error al generar el corte' };
+    return { error: error?.message ?? "Error al generar el corte" };
   }
 
-  revalidatePath(`/${slug}/admin/corte`);
-  revalidatePath(`/${slug}/caja/corte`);
+  // Auto-cerrar turno del cajero
+  try {
+    const perfilRaw = await supabase
+      .from("perfiles")
+      .select("rol")
+      .eq("id", auth.userId)
+      .single();
+    const perfil = perfilRaw.data as { rol: string } | null;
+
+    if (perfil?.rol === "caja") {
+      await supabase
+        .from("registro_turnos_personal")
+        .update({ fin: ahora, activo: false })
+        .eq("usuario_id", auth.userId)
+        .eq("sucursal_id", sucursalId)
+        .eq("activo", true)
+        .is("fin", null);
+    }
+  } catch (e) {
+    console.error("[generarCorte] Error al cerrar turno:", e);
+  }
 
   return { corteId: corte.id };
+}
+
+export async function obtenerSaldoInicialSugerido(): Promise<{
+  monto: number;
+}> {
+  const supabase = await createServerSupabaseClient();
+  const sucursalId = await getServerSucursalId();
+  if (!sucursalId) return { monto: 0 };
+
+  const ultimoCorteRaw = await supabase
+    .from("cortes_caja")
+    .select("dinero_dejado")
+    .eq("sucursal_id", sucursalId)
+    .not("dinero_dejado", "is", null)
+    .order("periodo_fin", { ascending: false })
+    .limit(1);
+
+  const ultimoCorte = ultimoCorteRaw.data?.[0] as
+    | { dinero_dejado: number }
+    | undefined;
+
+  return { monto: ultimoCorte?.dinero_dejado ?? 0 };
 }
 
 export async function exportarCorteExcel(fecha?: string): Promise<{
@@ -248,85 +390,103 @@ export async function exportarCorteExcel(fecha?: string): Promise<{
   const supabase = await createServerSupabaseClient();
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: 'No autorizado' };
+  if (!user) return { error: "No autorizado" };
 
   const sucursalId = await getServerSucursalId();
-  if (!sucursalId) return { error: 'Sucursal no identificada' };
+  if (!sucursalId) return { error: "Sucursal no identificada" };
 
-  const dia = fecha ?? new Date().toISOString().split('T')[0];
+  const dia = fecha ?? new Date().toISOString().split("T")[0];
 
   const sucursalRaw = await supabase
-    .from('sucursales')
-    .select('nombre')
-    .eq('id', sucursalId)
+    .from("sucursales")
+    .select("nombre")
+    .eq("id", sucursalId)
     .single();
-  const sucursalNombre = (sucursalRaw.data as { nombre: string } | null)?.nombre ?? 'Sucursal';
+  const sucursalNombre =
+    (sucursalRaw.data as { nombre: string } | null)?.nombre ?? "Sucursal";
 
   const resumen = await obtenerCorte(dia);
 
-  const datos = resumen.yaGenerado && resumen.corte
-    ? {
-        total_efectivo: resumen.corte.total_efectivo,
-        total_tarjeta: resumen.corte.total_tarjeta,
-        total_transferencia: resumen.corte.total_transferencia,
-        total_descuentos: resumen.corte.total_descuentos,
-        total_general: resumen.corte.total_general,
-        total_ordenes: resumen.corte.total_ordenes,
-        ordenes: (resumen.corte.detalle as any)?.ordenes ?? [],
-      }
-    : resumen.enVivo
-    ? {
-        total_efectivo: resumen.enVivo.total_efectivo,
-        total_tarjeta: resumen.enVivo.total_tarjeta,
-        total_transferencia: resumen.enVivo.total_transferencia,
-        total_descuentos: resumen.enVivo.total_descuentos,
-        total_general: resumen.enVivo.total_general,
-        total_ordenes: resumen.enVivo.total_ordenes,
-        ordenes: resumen.enVivo.ordenes,
-      }
-    : null;
+  // Combine all cortes + periodos actuales for export
+  const allOrdenes: OrdenRow[] = [];
 
-  if (!datos) return { error: 'No hay datos para exportar' };
+  // Add orders from stored cortes
+  for (const c of resumen.cortes) {
+    const detalle = c.detalle as { ordenes: OrdenRow[] } | null;
+    if (detalle?.ordenes) {
+      allOrdenes.push(...detalle.ordenes);
+    }
+  }
+
+  // Add current period orders
+  if (resumen.periodoActual) {
+    allOrdenes.push(...resumen.periodoActual.ordenes);
+  }
+
+  // Calculate combined totals
+  let totalEfectivo = 0;
+  let totalTarjeta = 0;
+  let totalTransferencia = 0;
+  let totalDescuentos = 0;
+  let totalGeneral = 0;
+
+  for (const o of allOrdenes) {
+    totalGeneral += o.total;
+    totalDescuentos += o.descuento;
+    if (o.metodo_pago === "efectivo") totalEfectivo += o.total;
+    else if (o.metodo_pago === "tarjeta") totalTarjeta += o.total;
+    else if (o.metodo_pago === "transferencia") totalTransferencia += o.total;
+  }
 
   const wb = XLSX.utils.book_new();
 
   const resumenRows = [
-    ['Sucursal', sucursalNombre],
-    ['Fecha', dia],
+    ["Sucursal", sucursalNombre],
+    ["Fecha", dia],
     [],
-    ['Concepto', 'Monto'],
-    ['Efectivo', datos.total_efectivo],
-    ['Tarjeta', datos.total_tarjeta],
-    ['Transferencia', datos.total_transferencia],
-    ['Descuentos', datos.total_descuentos],
-    ['Total General', datos.total_general],
-    ['Total Órdenes', datos.total_ordenes],
+    ["Concepto", "Monto"],
+    ["Efectivo", totalEfectivo],
+    ["Tarjeta", totalTarjeta],
+    ["Transferencia", totalTransferencia],
+    ["Descuentos", totalDescuentos],
+    ["Total General", totalGeneral],
+    ["Total Órdenes", allOrdenes.length],
   ];
   const wsResumen = XLSX.utils.aoa_to_sheet(resumenRows);
 
-  wsResumen['!cols'] = [
-    { wch: 25 },
-    { wch: 18 },
+  wsResumen["!cols"] = [{ wch: 25 }, { wch: 18 }];
+
+  XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
+
+  const detalleHeader = [
+    "#",
+    "Mesa",
+    "Zona",
+    "Mesero",
+    "Total",
+    "Método",
+    "Descuento",
+    "Items",
+    "Hora",
   ];
-
-  XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
-
-  const detalleHeader = ['#', 'Mesa', 'Zona', 'Mesero', 'Total', 'Método', 'Descuento', 'Items', 'Hora'];
-  const detalleRows = datos.ordenes.map((o: any, i: number) => [
+  const detalleRows = allOrdenes.map((o, i) => [
     i + 1,
     o.mesa,
-    o.zona ?? '',
+    o.zona ?? "",
     o.mesero,
     o.total,
     o.metodo_pago,
     o.descuento,
     o.items,
-    new Date(o.cerrado_a_las).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+    new Date(o.cerrado_a_las).toLocaleTimeString("es-MX", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
   ]);
 
   const wsDetalle = XLSX.utils.aoa_to_sheet([detalleHeader, ...detalleRows]);
 
-  wsDetalle['!cols'] = [
+  wsDetalle["!cols"] = [
     { wch: 6 },
     { wch: 6 },
     { wch: 10 },
@@ -338,13 +498,13 @@ export async function exportarCorteExcel(fecha?: string): Promise<{
     { wch: 10 },
   ];
 
-  XLSX.utils.book_append_sheet(wb, wsDetalle, 'Detalle');
+  XLSX.utils.book_append_sheet(wb, wsDetalle, "Detalle");
 
-  const wbArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const wbArray = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   const buffer = Buffer.from(wbArray);
-  const base64 = buffer.toString('base64');
+  const base64 = buffer.toString("base64");
 
-  const fileName = `corte_${sucursalNombre.replace(/\s+/g, '_')}_${dia}.xlsx`;
+  const fileName = `corte_${sucursalNombre.replace(/\s+/g, "_")}_${dia}.xlsx`;
 
   return { fileName, base64 };
 }
