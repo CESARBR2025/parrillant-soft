@@ -1,9 +1,9 @@
 "use server";
 
+import { createClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getServerSucursalId } from "@/lib/sucursal";
 import { authorize } from "@/lib/auth";
-import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 import type { Database } from "@/types/database.types";
 
@@ -11,7 +11,7 @@ function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+    { auth: { autoRefreshToken: false, persistSession: false } },
   );
 }
 
@@ -54,101 +54,47 @@ function normalizarMetodo(metodo: string | null): string {
   return metodo;
 }
 
-async function obtenerInicioPeriodo(
-  supabase: any,
-  sucursalId: string,
-  dia: string,
-  ultimoCorte: CorteCaja | null,
-): Promise<string> {
-  if (ultimoCorte) {
-    console.log(
-      "[DEBUG obtenerInicioPeriodo] usando ultimoCorte.periodo_fin:",
-      ultimoCorte.periodo_fin,
-    );
-    return ultimoCorte.periodo_fin;
-  }
-
-  const admin = getAdminClient();
-  const perfilesRaw = await admin
-    .from("perfiles")
-    .select("id")
-    .eq("rol", "caja");
-  const idsCaja = (perfilesRaw.data ?? []).map((p: { id: string }) => p.id);
-  if (idsCaja.length === 0) {
-    console.log("[DEBUG obtenerInicioPeriodo] sin cajeros");
-    const fb = `${dia}T00:00:00Z`;
-    return fb;
-  }
-
-  const turnoRaw = await supabase
-    .from("registro_turnos_personal")
-    .select("inicio")
-    .eq("sucursal_id", sucursalId)
-    .in("usuario_id", idsCaja)
-    .eq("activo", true)
-    .is("fin", null)
-    .order("inicio", { ascending: true })
-    .limit(1);
-
-  const turno = turnoRaw.data?.[0] as { inicio: string } | undefined;
-  console.log("[DEBUG obtenerInicioPeriodo] turno encontrado:", turno);
-  if (turno) return turno.inicio;
-
-  const fallback = `${dia}T00:00:00Z`;
-  console.log("[DEBUG obtenerInicioPeriodo] sin turno, fallback:", fallback);
-  return fallback;
+function localMidnight(dia: string): string {
+  return `${dia}T00:00:00Z`;
 }
 
-async function obtenerSaldoInicialParaPeriodo(
-  supabase: any,
+/** Get the cajero's declared saldo_inicial_caja for the first corte of the day */
+async function obtenerSaldoInicialCajero(
   sucursalId: string,
-  ultimoCorte: CorteCaja | null,
 ): Promise<number> {
-  const admin = getAdminClient();
-  const perfilesRaw = await admin
-    .from("perfiles")
-    .select("id")
-    .eq("rol", "caja");
-  const idsCaja = (perfilesRaw.data ?? []).map((p: { id: string }) => p.id);
-  if (idsCaja.length === 0) return 0;
+  try {
+    const admin = getAdminClient();
+    const perfilesRaw = await admin
+      .from("perfiles")
+      .select("id")
+      .eq("rol", "caja");
+    const idsCaja = (perfilesRaw.data ?? []).map((p: { id: string }) => p.id);
+    if (idsCaja.length === 0) return 0;
 
-  const turnoRaw = await supabase
-    .from("registro_turnos_personal")
-    .select("saldo_inicial_caja")
-    .eq("sucursal_id", sucursalId)
-    .in("usuario_id", idsCaja)
-    .eq("activo", true)
-    .is("fin", null)
-    .order("inicio", { ascending: true })
-    .limit(1);
+    const turnoRaw = await admin
+      .from("registro_turnos_personal")
+      .select("saldo_inicial_caja")
+      .in("usuario_id", idsCaja)
+      .eq("sucursal_id", sucursalId)
+      .eq("activo", true)
+      .is("fin", null)
+      .order("inicio", { ascending: true })
+      .limit(1);
 
-  const turno = turnoRaw.data?.[0] as
-    | { saldo_inicial_caja: number | null }
-    | undefined;
-
-  if (turno?.saldo_inicial_caja != null) {
-    return turno.saldo_inicial_caja;
+    return (turnoRaw.data?.[0] as { saldo_inicial_caja: number | null } | undefined)
+      ?.saldo_inicial_caja ?? 0;
+  } catch (e) {
+    console.error("[obtenerSaldoInicialCajero] Error:", e);
+    return 0;
   }
-
-  if (ultimoCorte?.dinero_dejado != null) {
-    return ultimoCorte.dinero_dejado;
-  }
-
-  return 0;
 }
 
 async function fetchOrdenes(
-  supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<
-    infer T
-  >
-    ? T
-    : never,
+  supabase: any,
   sucursalId: string,
   desde: string,
   hasta: string,
 ): Promise<PeriodoActual | null> {
-  console.log("[DEBUG fetchOrdenes] params:", { sucursalId, desde, hasta });
-
   const ordenesRaw = await supabase
     .from("ordenes")
     .select(
@@ -164,13 +110,6 @@ async function fetchOrdenes(
     .lte("updated_at", hasta)
     .is("orden_padre_id", null)
     .order("updated_at", { ascending: true });
-
-  console.log(
-    "[DEBUG fetchOrdenes] raw count:",
-    ordenesRaw.data?.length ?? 0,
-    "error:",
-    ordenesRaw.error?.message,
-  );
 
   const ordenes = ordenesRaw.data as Array<{
     id: number;
@@ -242,119 +181,83 @@ async function fetchOrdenes(
 
 export async function obtenerCorte(fecha?: string): Promise<CorteSummary> {
   try {
-    return await _obtenerCorteImpl(fecha);
-  } catch (e) {
-    console.error("[obtenerCorte] Error:", e);
-    return { cortes: [], ultimoCorte: null, periodoActual: null, aperturaHoy: null, cierreHoy: null };
-  }
-}
+    const supabase = await createServerSupabaseClient();
 
-async function _obtenerCorteImpl(fecha?: string): Promise<CorteSummary> {
-  const supabase = await createServerSupabaseClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("No autorizado");
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("No autorizado");
+    const sucursalId = await getServerSucursalId();
+    if (!sucursalId) throw new Error("Sucursal no identificada");
 
-  const sucursalId = await getServerSucursalId();
-  if (!sucursalId) throw new Error("Sucursal no identificada");
+    const dia = fecha ?? new Date().toISOString().split("T")[0];
 
-  const dia = fecha ?? new Date().toISOString().split("T")[0];
-  console.log("[DEBUG obtenerCorte] fecha param:", fecha, "| dia usado:", dia);
+    // 1. Get ALL cortes for the day (sorted newest first)
+    const cortesRaw = await supabase
+      .from("cortes_caja")
+      .select("*")
+      .eq("sucursal_id", sucursalId)
+      .eq("fecha", dia)
+      .order("periodo_fin", { ascending: false });
 
-  // 1. Get ALL cortes for the day (sorted newest first)
-  const cortesRaw = await supabase
-    .from("cortes_caja")
-    .select("*")
-    .eq("sucursal_id", sucursalId)
-    .eq("fecha", dia)
-    .order("periodo_fin", { ascending: false });
+    const cortes = (cortesRaw.data ?? []) as CorteCaja[];
+    const ultimoCorte = cortes.length > 0 ? cortes[0] : null;
 
-  const cortes = (cortesRaw.data ?? []) as CorteCaja[];
-  const ultimoCorte = cortes.length > 0 ? cortes[0] : null;
-  console.log(
-    "[DEBUG obtenerCorte] cortes encontrados:",
-    cortes.length,
-    "| ultimoCorte:",
-    ultimoCorte?.id,
-  );
-
-  // 1.5 Get branch's schedule for today (handles recurrencia)
-  const aperturasRaw = await supabase
-    .from("aperturas_turno")
-    .select("fecha, hora_inicio, hora_fin, recurrencia, recurrencia_fin")
-    .eq("sucursal_id", sucursalId)
-    .eq("activa", true);
-  const aperturas = (aperturasRaw.data ?? []) as Array<{
-    fecha: string;
-    hora_inicio: string;
-    hora_fin: string;
-    recurrencia: string | null;
-    recurrencia_fin: string | null;
-  }>;
-  let aperturaHoy: string | null = null;
-  let cierreHoy: string | null = null;
-  for (const a of aperturas) {
-    if (a.recurrencia) {
-      if (a.fecha <= dia && (!a.recurrencia_fin || a.recurrencia_fin >= dia)) {
+    // 2. Get branch's schedule for today (handles recurrencia)
+    const aperturasRaw = await supabase
+      .from("aperturas_turno")
+      .select("fecha, hora_inicio, hora_fin, recurrencia, recurrencia_fin")
+      .eq("sucursal_id", sucursalId)
+      .eq("activa", true);
+    const aperturas = (aperturasRaw.data ?? []) as Array<{
+      fecha: string;
+      hora_inicio: string;
+      hora_fin: string;
+      recurrencia: string | null;
+      recurrencia_fin: string | null;
+    }>;
+    let aperturaHoy: string | null = null;
+    let cierreHoy: string | null = null;
+    for (const a of aperturas) {
+      if (a.recurrencia) {
+        if (a.fecha <= dia && (!a.recurrencia_fin || a.recurrencia_fin >= dia)) {
+          aperturaHoy = a.hora_inicio;
+          cierreHoy = a.hora_fin;
+          break;
+        }
+      } else if (a.fecha === dia) {
         aperturaHoy = a.hora_inicio;
         cierreHoy = a.hora_fin;
         break;
       }
-    } else if (a.fecha === dia) {
-      aperturaHoy = a.hora_inicio;
-      cierreHoy = a.hora_fin;
-      break;
     }
+
+    // 3. Calculate the current period
+    //    From: last corte's periodo_fin, or midnight
+    //    To: now
+    const ahora = new Date().toISOString();
+    const periodoDesde = ultimoCorte
+      ? ultimoCorte.periodo_fin
+      : localMidnight(dia);
+    const saldoInicial = ultimoCorte
+      ? (ultimoCorte.dinero_dejado ?? 0)
+      : await obtenerSaldoInicialCajero(sucursalId);
+
+    if (ultimoCorte && ultimoCorte.periodo_fin >= ahora) {
+      return { cortes, ultimoCorte, periodoActual: null, aperturaHoy, cierreHoy };
+    }
+
+    const periodoActual = await fetchOrdenes(supabase, sucursalId, periodoDesde, ahora);
+
+    if (periodoActual) {
+      periodoActual.saldo_inicial = saldoInicial;
+      periodoActual.inicio = periodoDesde;
+    }
+
+    return { cortes, ultimoCorte, periodoActual, aperturaHoy, cierreHoy };
+  } catch (e) {
+    console.error("[obtenerCorte] Error:", e);
+    return { cortes: [], ultimoCorte: null, periodoActual: null, aperturaHoy: null, cierreHoy: null };
   }
-
-  // 2. Calculate the current "en vivo" period
-  //    From: last corte's periodo_fin, or turno's inicio, or beginning of day
-  //    To: now
-  const ahora = new Date().toISOString();
-  console.log("[DEBUG obtenerCorte] ahora (server):", ahora);
-  const periodoDesde = await obtenerInicioPeriodo(
-    supabase as any,
-    sucursalId,
-    dia,
-    ultimoCorte,
-  );
-  console.log("[DEBUG obtenerCorte] periodoDesde:", periodoDesde);
-
-  // If the last corte was generated after now (shouldn't happen), no active period
-  if (ultimoCorte && ultimoCorte.periodo_fin >= ahora) {
-    return { cortes, ultimoCorte, periodoActual: null, aperturaHoy, cierreHoy };
-  }
-
-  const periodoActual = await fetchOrdenes(
-    supabase,
-    sucursalId,
-    periodoDesde,
-    ahora,
-  );
-
-  // Set saldo_inicial for this period
-  if (periodoActual) {
-    periodoActual.saldo_inicial = await obtenerSaldoInicialParaPeriodo(
-      supabase,
-      sucursalId,
-      ultimoCorte,
-    );
-    periodoActual.inicio = periodoDesde;
-    console.log(
-      "[DEBUG obtenerCorte] periodoActual ENCONTRADO, ordenes:",
-      periodoActual.total_ordenes,
-      "saldo_inicial:",
-      periodoActual.saldo_inicial,
-    );
-  } else {
-    console.log(
-      "[DEBUG obtenerCorte] periodoActual es NULL (sin órdenes en el período)",
-    );
-  }
-
-  return { cortes, ultimoCorte, periodoActual, aperturaHoy, cierreHoy };
 }
 
 export async function generarCorte(
@@ -367,7 +270,6 @@ export async function generarCorte(
 
   const sucursalId = await getServerSucursalId();
   if (!sucursalId) return { error: "Sucursal no identificada" };
-
 
   const hoy = fecha ?? new Date().toISOString().split("T")[0];
   const ahora = new Date().toISOString();
@@ -382,19 +284,15 @@ export async function generarCorte(
     .limit(1);
 
   const ultimoCorte = ultimoCorteRaw.data?.[0] as CorteCaja | undefined;
-  const periodoInicio = await obtenerInicioPeriodo(
-    supabase as any,
-    sucursalId,
-    hoy,
-    ultimoCorte ?? null,
-  );
-  const saldoInicial = await obtenerSaldoInicialParaPeriodo(
-    supabase as any,
-    sucursalId,
-    ultimoCorte ?? null,
-  );
 
-  // Fetch orders closed in this period
+  const periodoInicio = ultimoCorte
+    ? ultimoCorte.periodo_fin
+    : localMidnight(hoy);
+  const saldoInicial = ultimoCorte
+    ? (ultimoCorte.dinero_dejado ?? 0)
+    : await obtenerSaldoInicialCajero(sucursalId);
+
+  // Fetch ALL orders closed in this period (any user/role)
   const enVivo = await fetchOrdenes(supabase, sucursalId, periodoInicio, ahora);
 
   if (!enVivo) {
@@ -466,7 +364,6 @@ export async function obtenerSaldoInicialSugerido(): Promise<{
   monto: number;
 }> {
   const supabase = await createServerSupabaseClient();
-
   const sucursalId = await getServerSucursalId();
   if (!sucursalId) return { monto: 0 };
 
@@ -492,9 +389,7 @@ export async function exportarCorteExcel(fecha?: string): Promise<{
 }> {
   const supabase = await createServerSupabaseClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autorizado" };
 
   const sucursalId = await getServerSucursalId();

@@ -61,9 +61,14 @@ function formatTime(iso: string) {
 }
 
 function formatTimeRange(desde: string, hasta?: string) {
-  const d = formatTime(desde);
-  const h = hasta ? formatTime(hasta) : 'ahora';
+  const isMidnight = desde.endsWith('T00:00:00Z');
+  const d = isMidnight ? 'Hoy' : formatTime(desde);
+  const h = hasta === undefined || hasta === 'ahora' ? 'ahora' : formatTime(hasta);
   return `${d} → ${h}`;
+}
+
+function formatPeriodLabel(inicio: string): string {
+  return inicio.endsWith('T00:00:00Z') ? 'Hoy' : formatTime(inicio);
 }
 
 export function CorteDiario({
@@ -176,9 +181,9 @@ export function CorteDiario({
           <div className="bg-accent/10 border border-accent/30 rounded-2xl p-4 flex items-center gap-3">
             <Clock className="w-5 h-5 text-accent shrink-0" />
             <div className="text-sm">
-              <span className="font-semibold text-text-primary">Período actual: </span>
+              <span className="font-semibold text-text-primary">Período: </span>
               <span className="text-muted">
-                {formatTimeRange(currentPeriod.inicio)}
+                {formatPeriodLabel(currentPeriod.inicio)} → ahora
               </span>
             </div>
             <div className="ml-auto flex items-center gap-3">
@@ -216,7 +221,7 @@ export function CorteDiario({
         <div className="bg-card border border-border/60 rounded-2xl p-5 flex items-center gap-4">
           <Clock className="w-5 h-5 text-muted shrink-0" />
           <p className="text-sm text-muted">
-            Período actual desde <strong className="text-text-primary">{formatTime(currentPeriod.inicio)}</strong> — Sin órdenes cerradas aún
+            Período <strong className="text-text-primary">{formatPeriodLabel(currentPeriod.inicio)}</strong> → ahora — Sin órdenes cerradas aún
           </p>
         </div>
       ) : (

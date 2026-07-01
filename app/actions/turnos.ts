@@ -496,10 +496,8 @@ export async function cerrarTurno(turnoId: string) {
       const ultimoCorte = ultimoCorteRaw.data?.[0] as { periodo_fin: string } | null;
 
       const desde = ultimoCorte
-        ? new Date(ultimoCorte.periodo_fin) > new Date(turno.inicio)
-          ? ultimoCorte.periodo_fin
-          : turno.inicio
-        : turno.inicio;
+        ? ultimoCorte.periodo_fin
+        : `${hoy}T00:00:00Z`;
 
       if (desde < ahora) {
         const { count } = await (supabase as any)
