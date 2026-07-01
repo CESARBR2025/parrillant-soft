@@ -79,7 +79,15 @@ async function obtenerSaldoInicialCajero(
     const idsSucursal = (usuarioSucRaw.data ?? []).map(
       (u: { usuario_id: string }) => u.usuario_id,
     );
-    if (idsSucursal.length === 0) return 0;
+    console.log("[obtenerSaldoInicialCajero] usuarios en sucursal:", {
+      sucursalId,
+      idsSucursal,
+      count: idsSucursal.length,
+    });
+    if (idsSucursal.length === 0) {
+      console.log("[obtenerSaldoInicialCajero] -> 0: no hay usuarios en sucursal");
+      return 0;
+    }
 
     // Filter only users with "caja" role
     const perfilesRaw = await admin
@@ -88,12 +96,19 @@ async function obtenerSaldoInicialCajero(
       .in("id", idsSucursal)
       .eq("rol", "caja");
     const idsCaja = (perfilesRaw.data ?? []).map((p: { id: string }) => p.id);
-    if (idsCaja.length === 0) return 0;
+    console.log("[obtenerSaldoInicialCajero] cajeros:", {
+      idsCaja,
+      count: idsCaja.length,
+    });
+    if (idsCaja.length === 0) {
+      console.log("[obtenerSaldoInicialCajero] -> 0: no hay cajeros en sucursal");
+      return 0;
+    }
 
     // Get the active turno with saldo_inicial_caja set
     const turnoRaw = await admin
       .from("registro_turnos_personal")
-      .select("saldo_inicial_caja")
+      .select("saldo_inicial_caja, inicio, usuario_id")
       .in("usuario_id", idsCaja)
       .eq("sucursal_id", sucursalId)
       .eq("activo", true)
@@ -101,6 +116,11 @@ async function obtenerSaldoInicialCajero(
       .not("saldo_inicial_caja", "is", null)
       .order("inicio", { ascending: false })
       .limit(1);
+
+    console.log("[obtenerSaldoInicialCajero] turno encontrado:", {
+      data: turnoRaw.data,
+      error: turnoRaw.error,
+    });
 
     return (turnoRaw.data?.[0] as { saldo_inicial_caja: number } | undefined)
       ?.saldo_inicial_caja ?? 0;
@@ -212,6 +232,13 @@ export async function obtenerCorte(fecha?: string): Promise<CorteSummary> {
 
     const dia = fecha ?? getMexicoDateString();
 
+    console.log("[obtenerCorte] entrada:", {
+      fecha_recibida: fecha,
+      dia_resuelto: dia,
+      sucursalId,
+      ahora_utc: new Date().toISOString(),
+    });
+
     // 1. Get ALL cortes for the day (sorted newest first)
     const cortesRaw = await supabase
       .from("cortes_caja")
@@ -222,6 +249,12 @@ export async function obtenerCorte(fecha?: string): Promise<CorteSummary> {
 
     const cortes = (cortesRaw.data ?? []) as CorteCaja[];
     const ultimoCorte = cortes.length > 0 ? cortes[0] : null;
+
+    console.log("[obtenerCorte] cortes del día:", {
+      count: cortes.length,
+      ultimoCorteId: ultimoCorte?.id,
+      ultimoCorteDineroDejado: ultimoCorte?.dinero_dejado,
+    });
 
     // 2. Get branch's schedule for today (handles recurrencia)
     const aperturasRaw = await supabase
@@ -252,6 +285,8 @@ export async function obtenerCorte(fecha?: string): Promise<CorteSummary> {
       }
     }
 
+    console.log("[obtenerCorte] apertura encontrada:", { aperturaHoy, cierreHoy });
+
     // 3. Calculate the current period
     //    From: last corte's periodo_fin, or midnight
     //    To: now
@@ -262,6 +297,12 @@ export async function obtenerCorte(fecha?: string): Promise<CorteSummary> {
     const saldoInicial = ultimoCorte
       ? (ultimoCorte.dinero_dejado ?? 0)
       : await obtenerSaldoInicialCajero(sucursalId);
+
+    console.log("[obtenerCorte] periodo y saldo:", {
+      periodoDesde,
+      saldoInicial,
+      hayUltimoCorte: !!ultimoCorte,
+    });
 
     if (ultimoCorte && ultimoCorte.periodo_fin >= ahora) {
       return { cortes, ultimoCorte, periodoActual: null, aperturaHoy, cierreHoy };
