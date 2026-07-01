@@ -204,10 +204,10 @@ export function CorteModal({ open, onClose, periodo, horarioApertura, horarioCie
                   <div className="flex items-center gap-2">
                     <div
                       className={`relative w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300 shrink-0 ${isActive
-                          ? 'bg-accent text-white shadow-lg shadow-accent/30 scale-110'
-                          : isDone
-                            ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
-                            : 'bg-bg-base text-muted border border-border/40'
+                        ? 'bg-accent text-white shadow-lg shadow-accent/30 scale-110'
+                        : isDone
+                          ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                          : 'bg-bg-base text-muted border border-border/40'
                         }`}
                     >
                       {isDone ? (
@@ -413,7 +413,7 @@ export function CorteModal({ open, onClose, periodo, horarioApertura, horarioCie
               <div>
                 <p className="text-lg font-bold text-text-primary">Corte generado</p>
                 <p className="text-sm text-muted mt-1">
-                  Tu turno ha sido cerrado. Serás redirigido al inicio de sesión...
+                  Tu turno ha sido cerrado. Serás redirigido al inicio de sesión posteriormente ...
                 </p>
               </div>
               <div className="flex items-center justify-center gap-2 text-sm text-muted">
