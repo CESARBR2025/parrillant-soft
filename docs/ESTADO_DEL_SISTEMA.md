@@ -102,9 +102,9 @@
 | `productos_menu` | `nombre`, `precio`, `tipo`, `categoria_id`, `sucursal_id`, `imagen_url` | Productos del menú |
 | `aperturas_turno` | `fecha`, `hora_inicio`, `hora_fin`, `recurrencia`, `sucursal_id` | Aperturas de turno (horarios) |
 | `aperturas_excepciones` | `apertura_id`, `fecha`, `hora_inicio`, `hora_fin` | Excepciones a aperturas recurrentes |
-| `registro_turnos_personal` | `usuario_id`, `sucursal_id`, `apertura_id`, `activo`, `inicio`, `fin` | Registro de turno del personal |
+| `registro_turnos_personal` | `usuario_id`, `sucursal_id`, `apertura_id`, `activo`, `inicio`, `fin`, `saldo_inicial_caja` | Registro de turno del personal |
 | `turnos` | (alias de registro_turnos_personal) | Legacy |
-| `cortes_caja` | `sucursal_id`, `fecha`, `total_efectivo`, `total_tarjeta`, `detalle` (JSONB) | Corte de caja diario (snapshot congelado de ventas del día) |
+| `cortes_caja` | `sucursal_id`, `fecha`, `periodo_inicio`, `periodo_fin`, `saldo_inicial`, `total_efectivo`, `total_tarjeta`, `total_transferencia`, `descuentos`, `dinero_dejado`, `detalle` (JSONB) | Corte de caja (soportando múltiples cortes por día, cada uno con su período y dinero dejado para el siguiente turno) |
 
 ### Enums
 
@@ -171,7 +171,7 @@ Todas las tablas con RLS usan `public.tiene_permiso('codigo')`:
 | `roles.ts` | crearRol, eliminarRol, actualizarRol, asignarPermiso, removerPermiso | `roles.administrar` |
 | `usuarios.ts` | crearUsuario, actualizarUsuario, toggleActivoUsuario, eliminarUsuario, asignarSucursal, removerSucursal | `usuarios.administrar` / `usuario_sucursal.asignar` |
 | `sucursales.ts` | crearSucursal, actualizarSucursal, toggleSucursalActiva, eliminarSucursal | `sucursales.administrar` |
-| `turnos.ts` | programarApertura, modificarApertura, eliminarApertura, crearExcepcion, eliminarExcepcion, registrarTurno, cerrarTurno, reasignarTurno | `sucursal.turnos.administrar` / `turnos.registrar` / `turnos.cerrar_cualquiera` |
+| `turnos.ts` | programarApertura, modificarApertura, eliminarApertura, crearExcepcion, eliminarExcepcion, registrarTurno, cerrarTurno, reasignarTurno, registrarSaldoInicialCaja | `sucursal.turnos.administrar` / `turnos.registrar` / `turnos.cerrar_cualquiera` |
 | `categorias.ts` | crearCategoria, editarCategoria, eliminarCategoria | `sucursal.menu.administrar` |
 | `productos.ts` | crearProducto, editarProducto, eliminarProducto | `sucursal.menu.administrar` |
 | `subirImagen.ts` | subirImagen, eliminarImagen | `sucursal.menu.administrar` |
@@ -186,7 +186,7 @@ Todas las tablas con RLS usan `public.tiene_permiso('codigo')`:
 | `marcarEntregado.ts` | marcarEntregado | Mesero (propia orden) |
 | `abrirMesa.ts` | abrirMesa | Requiere turno activo |
 | `crearSuperAdmin.ts` | crearSuperAdmin | Utilidad |
-| `cortes.ts` | obtenerCorte, generarCorte, exportarCorteExcel | `sucursal.cortes.ver` / `sucursal.cortes.generar` |
+| `cortes.ts` | obtenerCorte, generarCorte(dineroDejado), obtenerSaldoInicialSugerido, exportarCorteExcel | `sucursal.cortes.ver` / `sucursal.cortes.generar` |
 
 ---
 
@@ -231,10 +231,11 @@ Todas las tablas con RLS usan `public.tiene_permiso('codigo')`:
 | `ChangeCalculator` | checkout/ | Cálculo de cambio |
 | `OrderCard` | orders/ | Card de orden con items, badges, botones de acción |
 | `WaiterNotification` | — | Escucha Realtime: alerta sonora cuando orden pasa a "listo" |
-| `CorteDiario` | corte/ | Dashboard de corte de caja diario (vista previa vs generado) |
+| `CorteDiario` | corte/ | Dashboard de cortes de caja multi-turno: historial de cortes, período actual, input de dinero dejado, cálculo de total a entregar |
 | `ResumenCard` | corte/ | Cards de totales por método de pago |
 | `OrdenesTable` | corte/ | Tabla detallada de órdenes del día |
 | `ExportButton` | corte/ | Botón de exportar a Excel |
+| `SaldoInicialModal` | corte/ | Modal para que el cajero ingrese el saldo inicial al registrar turno, con sugerencia del corte anterior |
 
 ### UI Base
 
@@ -267,12 +268,14 @@ Todas las tablas con RLS usan `public.tiene_permiso('codigo')`:
 
 ## Implementado recientemente
 
+- [x] **Bloqueo de cierre de turno sin corte** — `cerrarTurno()` ahora verifica si el rol del usuario posee `sucursal.cortes.generar`. Si es así, revisa si hay órdenes cerradas sin corte en el período del turno. De haberlas, retorna `{ requiereCorte: true }` y el admin ve un toast con botón "Ir a Corte". Esto evita órdenes huérfanas al cerrar turnos de cajeros/gerentes sin generar corte primero.
 - [x] **Per-order button states en StationQueue** — Reemplazado `useTransition` (global `isPending`) por `pendingId: number | null`. Cada botón "Preparando" solo se deshabilita a sí mismo.
 - [x] **Per-button disable en ActiveOrderView** — `disabled={isSubmitting !== null}` → `disabled={isSubmitting !== null && isSubmitting !== key}`. Los botones "Servir alimentos/bebidas" y "Solicitar cuenta" ya no se deshabilitan todos al mismo tiempo.
 - [x] **Eliminado polling de 5s en ActiveOrderView** — Las suscripciones Realtime a `ordenes` y `detalles_orden` bastan.
 - [x] **ItemCheckbox no actualiza UI si falla BD** — `onMarked()` solo se llama cuando `res.error` es falsy.
 - [x] **try/catch en server actions** — `StationQueue.handleMarkReady`, `ItemCheckbox.handleClick`, `ActiveOrderView.handleServir` y `handleSolicitarCuenta` ahora envuelven el server action en try/catch/finally para evitar que el estado `pendingId`/`isSubmitting` quede atorado ante errores de red.
 - [x] **Módulo Corte de Caja Diario** — Tabla `cortes_caja` con snapshot JSONB, columna `descuento` en `ordenes`, server actions (`generarCorte`, `obtenerCorte`, `exportarCorteExcel`), componentes (`CorteDiario`, `ResumenCard`, `OrdenesTable`, `ExportButton`), rutas `/{slug}/admin/corte` y `/{slug}/caja/corte`, exportación a Excel con 2 hojas (Resumen + Detalle).
+- [x] **Cortes multi-turno** — `cortes_caja` ahora soporta múltiples cortes por día con `periodo_inicio`, `periodo_fin`, `saldo_inicial`, `dinero_dejado`. `registro_turnos_personal` tiene `saldo_inicial_caja`. Flujo: registrar turno → modal saldo inicial → trabajar → corte parcial con dinero dejado → siguiente turno retoma con ese saldo. Componentes: `SaldoInicialModal`, `CorteDiario` actualizado con cálculo "total a entregar = saldo_inicial + efectivo - dinero_dejado".
 
 ## Pendiente
 

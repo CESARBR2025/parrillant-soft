@@ -5,6 +5,7 @@ import { useNavigate } from '@/components/providers/NavigationProvider'
 import { CreditCard, Clock } from 'lucide-react'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
 import { useSucursal } from '@/components/providers/SucursalProvider'
+import { SaldoInicialModal } from '@/components/corte/SaldoInicialModal'
 import type { Database } from '@/types/database.types'
 
 type OrdenRow = Database['public']['Tables']['ordenes']['Row']
@@ -40,6 +41,8 @@ export default function CajaPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [now, setNow] = useState(() => Date.now())
+  const [turnoActivo, setTurnoActivo] = useState<{ id: string } | null>(null)
+  const [needsSaldoInicial, setNeedsSaldoInicial] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -156,6 +159,33 @@ export default function CajaPage() {
     }
   }, [supabase])
 
+  // Check for active turno and saldo_inicial_caja
+  useEffect(() => {
+    if (!sucursal?.id) return;
+
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const turnoRaw = await (supabase as any)
+        .from('registro_turnos_personal')
+        .select('id, saldo_inicial_caja')
+        .eq('usuario_id', user.id)
+        .eq('sucursal_id', sucursal.id)
+        .eq('activo', true)
+        .is('fin', null)
+        .maybeSingle();
+      const turno = turnoRaw.data as { id: string; saldo_inicial_caja: number | null } | null;
+
+      if (turno) {
+        setTurnoActivo({ id: turno.id });
+        if (turno.saldo_inicial_caja === null) {
+          setNeedsSaldoInicial(true);
+        }
+      }
+    })();
+  }, [sucursal?.id]);
+
   const tiempoEspera = (createdAt: string) => {
     const diff = now - new Date(createdAt).getTime()
     const mins = Math.floor(diff / 60000)
@@ -266,6 +296,15 @@ export default function CajaPage() {
             )
           })}
         </div>
+      )}
+
+      {needsSaldoInicial && turnoActivo && (
+        <SaldoInicialModal
+          turnoId={turnoActivo.id}
+          onConfirm={() => {
+            setNeedsSaldoInicial(false);
+          }}
+        />
       )}
     </div>
   )

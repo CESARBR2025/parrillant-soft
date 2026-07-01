@@ -9,7 +9,7 @@ interface NavigationContextType {
 }
 
 export const NavigationContext = createContext<NavigationContextType>({
-  startNavigation: () => {},
+  startNavigation: () => { },
 });
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
