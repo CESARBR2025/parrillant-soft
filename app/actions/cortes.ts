@@ -71,41 +71,22 @@ async function obtenerSaldoInicialCajero(
   try {
     const admin = getAdminClient();
 
-    // Get cajeros assigned to this sucursal
-    const usuarioSucRaw = await admin
-      .from("usuario_sucursales")
-      .select("usuario_id")
-      .eq("sucursal_id", sucursalId);
-    const idsSucursal = (usuarioSucRaw.data ?? []).map(
-      (u: { usuario_id: string }) => u.usuario_id,
-    );
-    console.log("[obtenerSaldoInicialCajero] usuarios en sucursal:", {
-      sucursalId,
-      idsSucursal,
-      count: idsSucursal.length,
-    });
-    if (idsSucursal.length === 0) {
-      console.log("[obtenerSaldoInicialCajero] -> 0: no hay usuarios en sucursal");
-      return 0;
-    }
-
-    // Filter only users with "caja" role
+    // Get all users with "caja" role
     const perfilesRaw = await admin
       .from("perfiles")
       .select("id")
-      .in("id", idsSucursal)
       .eq("rol", "caja");
     const idsCaja = (perfilesRaw.data ?? []).map((p: { id: string }) => p.id);
-    console.log("[obtenerSaldoInicialCajero] cajeros:", {
+    console.log("[obtenerSaldoInicialCajero] cajeros globales:", {
       idsCaja,
       count: idsCaja.length,
     });
     if (idsCaja.length === 0) {
-      console.log("[obtenerSaldoInicialCajero] -> 0: no hay cajeros en sucursal");
+      console.log("[obtenerSaldoInicialCajero] -> 0: no hay cajeros en el sistema");
       return 0;
     }
 
-    // Get the active turno with saldo_inicial_caja set
+    // Get the active turno with saldo_inicial_caja set for this sucursal
     const turnoRaw = await admin
       .from("registro_turnos_personal")
       .select("saldo_inicial_caja, inicio, usuario_id")
