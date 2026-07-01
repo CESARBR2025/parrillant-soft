@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getServerSucursalId, getServerSucursalSlug } from "@/lib/sucursal";
 import { createClient } from "@supabase/supabase-js";
 import { authorize } from "@/lib/auth";
+import { getMexicoDateString, getMexicoTimeString } from "@/lib/mexico-time";
 
 export async function programarApertura(
   sucursalId: string,
@@ -317,9 +318,8 @@ export async function registrarTurno(
     };
   }
 
-  const hoy = new Date();
-  const hoyStr = hoy.toISOString().split("T")[0];
-  const horaActual = hoy.toTimeString().slice(0, 5);
+  const hoyStr = getMexicoDateString();
+  const horaActual = getMexicoTimeString();
 
   console.log("[registrarTurno] Buscando apertura:", {
     sucursalId,
@@ -606,8 +606,8 @@ export async function reasignarTurno(turnoId: string, nuevaSucursalId: string) {
 export async function obtenerSucursalesConApertura() {
   const supabase = await createServerSupabaseClient();
 
-  const hoy = new Date().toISOString().split("T")[0];
-  const horaActual = new Date().toTimeString().slice(0, 5);
+  const hoy = getMexicoDateString();
+  const horaActual = getMexicoTimeString();
 
   // Aperturas de día único
   const unicasRaw = await (supabase as any)

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getServerSucursalId, getServerSucursalSlug } from '@/lib/sucursal';
+import { getMexicoDateString, getMexicoTimeString } from '@/lib/mexico-time';
 import { TurnosBranchClient } from './TurnosBranchClient';
 
 export const dynamic = 'force-dynamic';
@@ -82,8 +83,8 @@ export default async function SucursalTurnosPage({
     .order('nombre');
   const todasSucursales: { id: string; slug: string; nombre: string }[] = todasSucursalesRaw.data ?? [];
 
-  const hoy = new Date().toISOString().split('T')[0];
-  const horaActual = new Date().toTimeString().slice(0, 5);
+  const hoy = getMexicoDateString();
+  const horaActual = getMexicoTimeString();
   const aperturaHoyActiva = aperturas.some(
     a => a.activa && a.fecha === hoy &&
       a.hora_inicio <= horaActual &&
